@@ -1,4 +1,4 @@
-import { getSandbox, Sandbox, ExecuteResponse, parseSSEStream, LogEvent } from '@cloudflare/sandbox';
+import { getSandbox, ExecuteResponse, parseSSEStream, LogEvent } from '../../standalone/sandbox-stubs';
 
 import {
     TemplateDetailsResponse,
@@ -29,7 +29,7 @@ import {
 } from './sandboxTypes';
 
 import { createObjectLogger } from '../../logger';
-import { env } from 'cloudflare:workers'
+import { env } from '../../standalone/env-global'
 import { BaseSandboxService } from './BaseSandboxService';
 
 import { 
@@ -49,8 +49,8 @@ import { ResourceProvisioningResult } from './types';
 import { GitHubService } from '../github/GitHubService';
 import { getPreviewDomain } from '../../utils/urls';
 import { isDev } from 'worker/utils/envs';
-// Export the Sandbox class in your Worker
-export { Sandbox as UserAppSandboxService, Sandbox as DeployerService} from "@cloudflare/sandbox";
+// Standalone stubs for Durable Object exports
+export { Sandbox as UserAppSandboxService, Sandbox as DeployerService } from '../../standalone/sandbox-stubs';
 
 
 interface InstanceMetadata {
@@ -66,7 +66,8 @@ interface InstanceMetadata {
     redacted_files: string[];
 }
 
-type SandboxType = DurableObjectStub<Sandbox<Env>>;
+import type { SandboxInstance } from '../../standalone/sandbox-stubs';
+type SandboxType = SandboxInstance;
 
 /**
  * Streaming event for enhanced command execution

@@ -1,4 +1,4 @@
-import { env } from 'cloudflare:workers'
+import { env } from '../../../standalone/env-global'
 import { ToolDefinition } from '../types';
 
 interface SerpApiResponse {
@@ -118,7 +118,7 @@ async function performWebSearch(
         if (!response.ok)
             throw new Error(`SerpAPI returned ${response.status}`);
 
-        const data: SerpApiResponse = await response.json();
+        const data = await response.json() as SerpApiResponse;
         if (data.error) throw new Error(`SerpAPI error: ${data.error}`);
 
         return formatSearchResults(data, query, numResults);

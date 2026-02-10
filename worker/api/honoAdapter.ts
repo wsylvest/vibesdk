@@ -7,11 +7,29 @@ import { enforceAuthRequirement } from '../middleware/auth/routeAuth';
 * This is a simple adapter to convert Hono context to our base controller's expected arguments
 */
 
+/**
+ * Standalone execution context stub replacing Cloudflare's ExecutionContext.
+ */
+interface StandaloneExecutionContext {
+    waitUntil(promise: Promise<unknown>): void;
+    passThroughOnException(): void;
+}
+
+const standaloneCtx: StandaloneExecutionContext = {
+    waitUntil(_promise: Promise<unknown>): void {
+        // In standalone mode, we don't need to extend request lifetime
+        // The Node.js process persists beyond the request
+    },
+    passThroughOnException(): void {
+        // No-op in standalone mode
+    },
+};
+
 type ControllerMethod<T extends BaseController> = (
     this: T,
     request: Request,
     env: Env,
-    ctx: ExecutionContext,
+    ctx: StandaloneExecutionContext,
     context: RouteContext
 ) => Promise<Response>;
 
@@ -36,9 +54,8 @@ export function adaptController<T extends BaseController>(
             controller,
             c.req.raw,
             c.env,
-            c.executionCtx,
+            standaloneCtx,
             routeContext
         );
     };
 }
-

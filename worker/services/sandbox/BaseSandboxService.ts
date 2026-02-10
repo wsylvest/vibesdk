@@ -34,7 +34,7 @@ import {
   } from './sandboxTypes';
   
   import { createObjectLogger, StructuredLogger } from '../../logger';
-  import { env } from 'cloudflare:workers'
+  import { env } from '../../standalone/env-global'
   /**
    * Streaming event for enhanced command execution
    */

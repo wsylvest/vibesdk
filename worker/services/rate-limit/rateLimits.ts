@@ -4,6 +4,7 @@ import { AuthUser } from '../../types/auth-types';
 import { extractTokenWithMetadata, extractRequestMetadata } from '../../utils/authUtils';
 import { captureSecurityEvent } from '../../observability/sentry';
 import { KVRateLimitStore } from './KVRateLimitStore';
+import { DORateLimitStore } from './DORateLimitStore';
 import { RateLimitExceededError, SecurityError } from 'shared/types/errors';
 import { isDev } from 'worker/utils/envs';
 
@@ -53,7 +54,7 @@ export class RateLimitService {
         config: DORateLimitConfig
     ): Promise<boolean> {
         try {
-            const stub = env.DORateLimitStore.getByName(key);
+            const stub = env.DORateLimitStore.getByName(key) as DORateLimitStore;
 
             const result = await stub.increment(key, {
                 limit: config.limit,

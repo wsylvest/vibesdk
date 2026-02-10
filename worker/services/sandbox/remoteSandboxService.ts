@@ -35,7 +35,7 @@ import {
     GitHubPushResponseSchema,
 } from './sandboxTypes';
 import { BaseSandboxService } from "./BaseSandboxService";
-import { env } from 'cloudflare:workers'
+import { env } from '../../standalone/env-global'
 import z from 'zod';
 
 export async function runnerFetch(url: string, method: 'GET' | 'POST' | 'DELETE', headers: Headers, body: string | undefined) {

@@ -449,7 +449,7 @@ export class SessionService extends BaseService {
                     )
                 );
                 
-            const deletedCount = result.meta.changes || 0;
+            const deletedCount = result.rowsAffected ?? 0;
             
             // Log security event
             await this.logSecurityEvent(

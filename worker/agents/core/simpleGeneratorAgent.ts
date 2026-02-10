@@ -1,4 +1,4 @@
-import { Agent, Connection } from 'agents';
+import { Agent, Connection } from '../../standalone/agents-compat';
 import { 
     Blueprint, 
     PhaseConceptGenerationSchemaType, 
@@ -156,7 +156,7 @@ export class SimpleCodeGeneratorAgent extends Agent<Env, CodeGenState> {
         form.append('file', blob, filename);
 
         // Type guard for Images binding
-        type ImagesBinding = { fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> };
+        type ImagesBinding = { fetch: (input: string | URL | Request, init?: RequestInit) => Promise<Response> };
         const maybeImages = (this.env as unknown as { [key: string]: unknown })['IMAGES'];
         const imagesBinding: ImagesBinding | null = (
             typeof maybeImages === 'object' && maybeImages !== null &&

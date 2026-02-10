@@ -1,7 +1,7 @@
 import { SandboxSdkClient } from "./sandboxSdkClient";
 import { RemoteSandboxServiceClient } from "./remoteSandboxService";
 import { BaseSandboxService } from "./BaseSandboxService";
-import { env } from 'cloudflare:workers'
+import { env } from '../../standalone/env-global'
 
 export function getSandboxService(sessionId: string): BaseSandboxService {
     if (env.SANDBOX_SERVICE_TYPE == 'runner') {

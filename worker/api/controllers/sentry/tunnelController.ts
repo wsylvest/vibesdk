@@ -52,7 +52,7 @@ export class SentryTunnelController extends BaseController {
             const sentryUrl = `https://${sentryHost}/api/${projectId}/envelope/`;
             
             // Build headers including CF Access headers if configured
-            const headers: HeadersInit = {
+            const headers: Record<string, string> = {
                 'Content-Type': 'application/x-sentry-envelope',
             };
             

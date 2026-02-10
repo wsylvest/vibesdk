@@ -4,7 +4,9 @@ export default defineConfig({
   schema: './worker/database/schema.ts',
   out: './migrations',
   dialect: 'sqlite',
-  driver: 'd1-http',
+  dbCredentials: {
+    url: process.env.DATABASE_PATH || '.data/vibesdk.db',
+  },
   verbose: true,
   strict: true,
 });

@@ -43,15 +43,17 @@ export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
         return false;
     }
     
-    return crypto.subtle.timingSafeEqual(aBuffer, bBuffer);
+    const subtle = crypto.subtle as unknown as { timingSafeEqual(a: ArrayBuffer | Uint8Array, b: ArrayBuffer | Uint8Array): boolean };
+    return subtle.timingSafeEqual(aBuffer, bBuffer);
 }
 
 export function timingSafeEqualBytes(a: Uint8Array, b: Uint8Array): boolean {
     if (a.length !== b.length) {
         return false;
     }
-    
-    return crypto.subtle.timingSafeEqual(a, b);
+
+    const subtle = crypto.subtle as unknown as { timingSafeEqual(a: ArrayBuffer | Uint8Array, b: ArrayBuffer | Uint8Array): boolean };
+    return subtle.timingSafeEqual(a, b);
 }
 
 export function generateSecureToken(length: number = 32): string {

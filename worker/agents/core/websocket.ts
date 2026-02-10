@@ -1,4 +1,4 @@
-import { Connection } from 'agents';
+import { Connection } from '../../standalone/agents-compat';
 import { createLogger } from '../../logger';
 import { WebSocketMessageRequests, WebSocketMessageResponses } from '../constants';
 import { SimpleCodeGeneratorAgent } from './simpleGeneratorAgent';

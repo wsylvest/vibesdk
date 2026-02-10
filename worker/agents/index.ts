@@ -1,6 +1,6 @@
 
 import { SmartCodeGeneratorAgent } from './core/smartGeneratorAgent';
-import { getAgentByName } from 'agents';
+import { getAgentByName } from '../standalone/agents-compat';
 import { CodeGenState } from './core/state';
 import { generateId } from '../utils/idGenerator';
 import { StructuredLogger } from '../logger';
@@ -12,41 +12,30 @@ import { TemplateDetails } from '../services/sandbox/sandboxTypes';
 import { TemplateSelection } from './schemas';
 import type { ImageAttachment } from '../types/image-attachment';
 
-export async function getAgentStub(env: Env, agentId: string, searchInOtherJurisdictions: boolean = false, logger: StructuredLogger) : Promise<DurableObjectStub<SmartCodeGeneratorAgent>> {
+export async function getAgentStub(env: Env, agentId: string, searchInOtherJurisdictions: boolean = false, logger: StructuredLogger) : Promise<SmartCodeGeneratorAgent> {
     if (searchInOtherJurisdictions) {
-        // Try multiple jurisdictions until we find the agent
-        const jurisdictions = [undefined, 'eu' as DurableObjectJurisdiction];
-        for (const jurisdiction of jurisdictions) {
-            try {
-                logger.info(`Agent ${agentId} retreiving from jurisdiction ${jurisdiction}`);
-                const stub = await getAgentByName<Env, SmartCodeGeneratorAgent>(env.CodeGenObject, agentId, {
-                    locationHint: 'enam',
-                    jurisdiction: jurisdiction,
-                });
-                const isInitialized = await stub.isInitialized()
-                if (isInitialized) {
-                    logger.info(`Agent ${agentId} found in jurisdiction ${jurisdiction}`);
-                    return stub
-                }
-            } catch (error) {
-                logger.info(`Agent ${agentId} not found in jurisdiction ${jurisdiction}`);
+        try {
+            logger.info(`Agent ${agentId} retrieving from registry`);
+            const agent = getAgentByName<Env, SmartCodeGeneratorAgent>(env.CodeGenObject, agentId);
+            const isInitialized = await agent.isInitialized()
+            if (isInitialized) {
+                logger.info(`Agent ${agentId} found in registry`);
+                return agent;
             }
+        } catch {
+            logger.info(`Agent ${agentId} not found in registry`);
         }
-        // If all jurisdictions fail, throw an error
-        // throw new Error(`Agent ${agentId} not found in any jurisdiction`);
     }
     logger.info(`Agent ${agentId} retrieved directly`);
-    return getAgentByName<Env, SmartCodeGeneratorAgent>(env.CodeGenObject, agentId, {
-        locationHint: 'enam'
-    });
+    return getAgentByName<Env, SmartCodeGeneratorAgent>(env.CodeGenObject, agentId);
 }
 
 export async function getAgentState(env: Env, agentId: string, searchInOtherJurisdictions: boolean = false, logger: StructuredLogger) : Promise<CodeGenState> {
     const agentInstance = await getAgentStub(env, agentId, searchInOtherJurisdictions, logger);
-    return agentInstance.getFullState() as CodeGenState;
+    return await agentInstance.getFullState() as CodeGenState;
 }
 
-export async function cloneAgent(env: Env, agentId: string, logger: StructuredLogger) : Promise<{newAgentId: string, newAgent: DurableObjectStub<SmartCodeGeneratorAgent>}> {
+export async function cloneAgent(env: Env, agentId: string, logger: StructuredLogger) : Promise<{newAgentId: string, newAgent: SmartCodeGeneratorAgent}> {
     const agentInstance = await getAgentStub(env, agentId, true, logger);
     if (!agentInstance || !await agentInstance.isInitialized()) {
         throw new Error(`Agent ${agentId} not found`);
@@ -63,7 +52,6 @@ export async function cloneAgent(env: Env, agentId: string, logger: StructuredLo
         currentDevState: 0,
         generationPromise: undefined,
         shouldBeGenerating: false,
-        // latestScreenshot: undefined,
         clientReportedErrors: [],
     };
 
@@ -85,7 +73,7 @@ export async function getTemplateForQuery(
     }
 
     const sandboxSessionId = generateId();
-        
+
     const [analyzeQueryResponse, sandboxClient] = await Promise.all([
             selectTemplate({
                 env: env,
@@ -93,18 +81,18 @@ export async function getTemplateForQuery(
                 query,
                 availableTemplates: templatesResponse.templates,
                 images,
-            }), 
+            }),
             getSandboxService(sandboxSessionId)
         ]);
-        
+
         logger.info('Selected template', { selectedTemplate: analyzeQueryResponse });
-            
+
         // Find the selected template by name in the available templates
         if (!analyzeQueryResponse.selectedTemplateName) {
             logger.error('No suitable template found for code generation');
             throw new Error('No suitable template found for code generation');
         }
-            
+
         const selectedTemplate = templatesResponse.templates.find(template => template.name === analyzeQueryResponse.selectedTemplateName);
         if (!selectedTemplate) {
             logger.error('Selected template not found');
@@ -116,7 +104,7 @@ export async function getTemplateForQuery(
             logger.error('Failed to fetch files', { templateDetailsResponse });
             throw new Error('Failed to fetch files');
         }
-            
+
         const templateDetails = templateDetailsResponse.templateDetails;
         return { sandboxSessionId, templateDetails, selection: analyzeQueryResponse };
 }

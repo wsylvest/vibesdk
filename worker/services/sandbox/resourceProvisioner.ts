@@ -1,5 +1,5 @@
 import { StructuredLogger } from '../../logger';
-import { env } from 'cloudflare:workers';
+import { env } from '../../standalone/env-global';
 
 export interface ResourceProvisionResult {
     success: boolean;
@@ -55,7 +55,7 @@ export class ResourceProvisioner {
         });
     }
 
-    private getCloudflareHeaders(): HeadersInit {
+    private getCloudflareHeaders(): Record<string, string> {
         return {
             'Authorization': `Bearer ${this.apiToken}`,
             'Content-Type': 'application/json'
@@ -86,7 +86,7 @@ export class ResourceProvisioner {
                 };
             }
 
-            const result: CloudflareKVNamespaceResponse = await response.json();
+            const result = await response.json() as CloudflareKVNamespaceResponse;
             
             if (!result.success || !result.result?.id) {
                 this.logger.error('KV namespace creation failed', result.errors);
@@ -138,7 +138,7 @@ export class ResourceProvisioner {
                 };
             }
 
-            const result: CloudflareD1DatabaseResponse = await response.json();
+            const result = await response.json() as CloudflareD1DatabaseResponse;
             
             if (!result.success || !result.result?.uuid) {
                 this.logger.error('D1 database creation failed', result.errors);

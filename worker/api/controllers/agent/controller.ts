@@ -221,7 +221,7 @@ export class CodingAgentController extends BaseController {
                 // We need to emulate a WebSocket response even for errors
                 const { 0: client, 1: server } = new WebSocketPair();
 
-                server.accept();
+                (server as WebSocket & { accept(): void }).accept();
                 server.send(JSON.stringify({
                     type: WebSocketMessageResponses.ERROR,
                     error: `Failed to get agent instance: ${error instanceof Error ? error.message : String(error)}`
@@ -232,7 +232,7 @@ export class CodingAgentController extends BaseController {
                 return new Response(null, {
                     status: 101,
                     webSocket: client
-                });
+                } as ResponseInit);
             }
         } catch (error) {
             this.logger.error('Error handling WebSocket connection', error);

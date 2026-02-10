@@ -80,7 +80,7 @@ export class ScreenshotsController extends BaseController {
                 return ScreenshotsController.createErrorResponse('Screenshot not found', 404);
             }
 
-            const contentType = obj.httpMetadata?.contentType || getMimeByExtension(validatedFile) || 'image/png';
+            const contentType = getMimeByExtension(validatedFile) || 'image/png';
             const headers = new Headers({
                 'Content-Type': contentType,
                 'Cache-Control': 'public, max-age=31536000, immutable',

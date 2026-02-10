@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import path from 'path';
 
-import { cloudflare } from '@cloudflare/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
@@ -16,10 +15,6 @@ export default defineConfig({
 	plugins: [
 		react(),
 		svgr(),
-		cloudflare({
-			configPath: 'wrangler.jsonc',
-			experimental: { remoteBindings: true },
-		}),
 		tailwindcss(),
 	],
 

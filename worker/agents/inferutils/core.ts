@@ -201,16 +201,14 @@ export async function buildGatewayUrl(env: Env, providerOverride?: AIGatewayProv
                 url.pathname = providerOverride ? `${cleanPathname}/${providerOverride}` : `${cleanPathname}/compat`;
                 return url.toString();
             }
-        } catch (error) {
-            // Invalid URL, fall through to use bindings
-            console.warn(`Invalid CLOUDFLARE_AI_GATEWAY_URL provided: ${env.CLOUDFLARE_AI_GATEWAY_URL}. Falling back to AI bindings.`);
+        } catch {
+            console.warn(`Invalid CLOUDFLARE_AI_GATEWAY_URL provided: ${env.CLOUDFLARE_AI_GATEWAY_URL}`);
         }
     }
-    
-    // Build the url via bindings
-    const gateway = env.AI.gateway(env.CLOUDFLARE_AI_GATEWAY);
-    const baseUrl = providerOverride ? await gateway.getUrl(providerOverride) : `${await gateway.getUrl()}compat`;
-    return baseUrl;
+
+    throw new Error(
+        'CLOUDFLARE_AI_GATEWAY_URL must be set to a valid URL for AI gateway access in standalone mode.'
+    );
 }
 
 function isValidApiKey(apiKey: string): boolean {

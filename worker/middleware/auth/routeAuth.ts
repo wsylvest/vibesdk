@@ -12,7 +12,6 @@ import { errorResponse } from '../../api/responses';
 import { Context } from 'hono';
 import { AppEnv } from '../../types/appenv';
 import { RateLimitExceededError } from 'shared/types/errors';
-import * as Sentry from '@sentry/cloudflare';
 import { getUserConfigurableSettings } from 'worker/config';
 
 const logger = createLogger('RouteAuth');
@@ -153,7 +152,7 @@ export async function enforceAuthRequirement(c: Context<AppEnv>) : Promise<Respo
         user = userSession.user;
         c.set('user', user);
 		c.set('sessionId', userSession.sessionId);
-		Sentry.setUser({ id: user.id, email: user.email });
+		// User session tracked for logging
 
         const config = await getUserConfigurableSettings(c.env, user.id);
         c.set('config', config);

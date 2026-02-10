@@ -1,5 +1,4 @@
-import { captureMessage, withScope, flush } from '@sentry/cloudflare';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../standalone/env-global';
 import { ErrorResult, ToolDefinition } from '../types';
 
 type FeedbackArgs = {
@@ -22,34 +21,18 @@ const submitFeedbackImplementation = async (
 			};
 		}
 
-		// Use withScope to isolate this event's context
-		const eventId = withScope((scope) => {
-			// Set tags for categorization
-			scope.setTags({
-				type: args.type,
-				severity: args.severity || 'medium',
-				source: 'ai_conversation_tool',
-			});
+		const level = args.type === 'bug' ? 'error' : 'info';
+		const eventId = `feedback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-			// Set context for additional information
-			scope.setContext('feedback', {
-				user_provided_context: args.context || 'No additional context',
-				submission_type: args.type,
-			});
-
-			// Capture the message with appropriate severity level
-			return captureMessage(
-				args.message,
-				args.type === 'bug' ? 'error' : 'info'
-			);
+		console.warn(`[feedback:${level}] ${args.type}: ${args.message}`, {
+			severity: args.severity || 'medium',
+			context: args.context || 'No additional context',
+			eventId,
 		});
-
-		// Flush to ensure it's sent immediately
-		await flush(2000);
 
 		return {
 			success: true,
-			eventId: eventId || 'unknown',
+			eventId,
 		};
 	} catch (error) {
 		return {

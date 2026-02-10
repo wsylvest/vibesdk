@@ -203,7 +203,7 @@ export class ModelConfigService extends BaseService {
                 eq(userModelConfigs.agentActionName, agentActionName)
             ));
 
-        return (result.meta?.changes || 0) > 0;
+        return (result.rowsAffected ?? 0) > 0;
     }
 
     /**
@@ -221,6 +221,6 @@ export class ModelConfigService extends BaseService {
             .delete(userModelConfigs)
             .where(eq(userModelConfigs.userId, userId));
 
-        return result.meta?.changes || 0;
+        return result.rowsAffected ?? 0;
     }
 }
