@@ -4,7 +4,7 @@
  */
 
 import { join } from 'node:path';
-import { MemoryKVStore } from './kv-store';
+import { FileBackedKVStore } from './kv-store';
 import { InMemoryRateLimiter } from './rate-limiter';
 import { FileSystemStorage } from './storage';
 import { StaticFileServer } from './static-server';
@@ -34,17 +34,19 @@ export function createStandaloneEnv(): Env {
     // factories always see the fully-built object.
     let env: Env;
 
+    const agentStateDir = join(dataDir, 'agents');
+
     const codeGenNamespace = new AgentNamespace<SmartCodeGeneratorAgent>((_name) => {
         return new SmartCodeGeneratorAgent(env, {} as SmartCodeGeneratorAgent['state']);
-    }) as unknown as DurableObjectNamespace;
+    }, agentStateDir) as unknown as DurableObjectNamespace;
 
     const rateLimitNamespace = new AgentNamespace<DORateLimitStore & Agent<unknown, unknown>>((_name) => {
         return new DORateLimitStore() as DORateLimitStore & Agent<unknown, unknown>;
     }) as unknown as DurableObjectNamespace;
 
     env = {
-        // KV Store (in-memory)
-        VibecoderStore: new MemoryKVStore() as unknown as KVNamespace,
+        // KV Store (filesystem-backed)
+        VibecoderStore: new FileBackedKVStore(join(dataDir, 'kv-store.json')) as unknown as KVNamespace,
 
         // String configuration variables
         TEMPLATES_REPOSITORY: optionalEnv('TEMPLATES_REPOSITORY', 'https://github.com/cloudflare/vibesdk-templates'),
@@ -108,18 +110,24 @@ export function createStandaloneEnv(): Env {
 
         // Standalone service implementations
         TEMPLATES_BUCKET: new FileSystemStorage(join(dataDir, 'templates')) as unknown as R2Bucket,
-        DB: null as unknown as D1Database,
-        DISPATCHER: null as unknown as DispatchNamespace,
         API_RATE_LIMITER: new InMemoryRateLimiter(200, 60) as unknown as RateLimit,
         AUTH_RATE_LIMITER: new InMemoryRateLimiter(20, 60) as unknown as RateLimit,
-        AI: null as unknown as Ai,
-        IMAGES: null as unknown as ImagesBinding,
         CF_VERSION_METADATA: { id: optionalEnv('APP_VERSION', 'standalone-dev') } as unknown as WorkerVersionMetadata,
         ASSETS: new StaticFileServer(distDir) as unknown as Fetcher,
 
+        // Null stubs — these CF-only bindings are never accessed at runtime:
+        //  DB: DatabaseService manages its own connection via @libsql/client
+        //  AI/IMAGES: unused in codebase
+        //  DISPATCHER: guarded by isDispatcherAvailable() null check
+        //  Sandbox: guarded by SANDBOX_SERVICE_TYPE defaulting to 'runner'
+        DB: null as unknown as D1Database,
+        AI: null as unknown as Ai,
+        IMAGES: null as unknown as ImagesBinding,
+        DISPATCHER: null as unknown as DispatchNamespace,
+        Sandbox: null as unknown as DurableObjectNamespace,
+
         // Agent namespace registries (lazy-create agents on getByName)
         CodeGenObject: codeGenNamespace,
-        Sandbox: null as unknown as DurableObjectNamespace,
         DORateLimitStore: rateLimitNamespace,
     };
 

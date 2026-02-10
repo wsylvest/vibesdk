@@ -3,7 +3,7 @@
  * Provides Agent base class, Connection type, and getAgentByName functionality.
  *
  * Key differences from Cloudflare Durable Objects:
- *  - State lives in-memory (lost on restart — persistence requires external store)
+ *  - State persisted to filesystem via AgentStatePersistence (debounced writes)
  *  - WebSocket upgrade uses Node.js `ws` library (no WebSocketPair)
  *  - Agent instances are managed by AgentNamespace registries
  */
@@ -11,6 +11,7 @@
 import { WebSocketServer, WebSocket as WsWebSocket } from 'ws';
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
+import { AgentStatePersistence } from './state-persistence';
 
 /**
  * Connection type matching the 'agents' package Connection interface.
@@ -44,11 +45,27 @@ export class Agent<TEnv, TState> {
     env: TEnv;
     state: TState;
     ctx: AgentContext;
+    private _persistence: AgentStatePersistence<TState> | null = null;
+    private _hasPersistedState = false;
 
     constructor(env: TEnv, initialState: TState) {
         this.env = env;
         this.state = { ...initialState };
         this.ctx = new AgentContext();
+    }
+
+    /**
+     * Wire up filesystem-backed state persistence. Called by AgentNamespace
+     * after construction. If persisted state exists on disk it is merged
+     * into the current state.
+     */
+    attachPersistence(persistence: AgentStatePersistence<TState>): void {
+        this._persistence = persistence;
+        const saved = persistence.loadSync();
+        if (saved) {
+            this.state = { ...this.state, ...saved };
+            this._hasPersistedState = true;
+        }
     }
 
     setEnv(env: TEnv): void {
@@ -61,6 +78,8 @@ export class Agent<TEnv, TState> {
 
     setState(newState: TState): void {
         this.state = { ...newState };
+        this._hasPersistedState = true;
+        this._persistence?.markDirty(this.state);
     }
 
     getState(): TState {
@@ -72,7 +91,7 @@ export class Agent<TEnv, TState> {
     }
 
     isInitialized(): boolean | Promise<boolean> {
-        return false;
+        return this._hasPersistedState;
     }
 
     /**
@@ -136,19 +155,28 @@ type AgentFactory<T> = (name: string) => T;
  * In-memory namespace that lazily creates agent instances on getByName().
  * Implements the DurableObjectNamespace shape so it can be placed directly
  * on env.CodeGenObject / env.DORateLimitStore and called identically.
+ *
+ * When stateDir is provided, agent state is persisted to disk and restored
+ * on creation so that state survives process restarts.
  */
 export class AgentNamespace<T extends Agent<unknown, unknown>> {
     private instances = new Map<string, T>();
     private factory: AgentFactory<T>;
+    private stateDir: string | null;
 
-    constructor(factory: AgentFactory<T>) {
+    constructor(factory: AgentFactory<T>, stateDir?: string) {
         this.factory = factory;
+        this.stateDir = stateDir ?? null;
     }
 
     getByName(name: string): T {
         let instance = this.instances.get(name);
         if (!instance) {
             instance = this.factory(name);
+            if (this.stateDir) {
+                const persistence = new AgentStatePersistence<unknown>(this.stateDir, name);
+                instance.attachPersistence(persistence as AgentStatePersistence<never>);
+            }
             this.instances.set(name, instance);
         }
         return instance;
@@ -167,6 +195,11 @@ export class AgentNamespace<T extends Agent<unknown, unknown>> {
     }
 
     delete(name: string): boolean {
+        const instance = this.instances.get(name);
+        if (instance) {
+            // Flush any pending state before removing
+            (instance as Agent<unknown, unknown>)['_persistence']?.dispose();
+        }
         return this.instances.delete(name);
     }
 }
