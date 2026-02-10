@@ -7,6 +7,17 @@ import { readFile, writeFile, mkdir, unlink, readdir, stat } from 'node:fs/promi
 import { join, dirname, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 
+/**
+ * Return type for get() — mirrors the R2ObjectBody interface subset actually
+ * used by the codebase (.text(), .arrayBuffer(), .json(), .body).
+ */
+interface StorageObject {
+    text(): Promise<string>;
+    json(): Promise<unknown>;
+    arrayBuffer(): Promise<ArrayBuffer>;
+    body: ReadableStream;
+}
+
 export class FileSystemStorage {
     private basePath: string;
 
@@ -22,12 +33,13 @@ export class FileSystemStorage {
         return resolved;
     }
 
-    async get(key: string): Promise<{ text(): Promise<string>; arrayBuffer(): Promise<ArrayBuffer>; body: ReadableStream } | null> {
+    async get(key: string): Promise<StorageObject | null> {
         const filePath = this.resolvePath(key);
         try {
             const data = await readFile(filePath);
             return {
                 text: async () => data.toString('utf-8'),
+                json: async () => JSON.parse(data.toString('utf-8')) as unknown,
                 arrayBuffer: async () => new Uint8Array(data).buffer as ArrayBuffer,
                 body: new ReadableStream({
                     start(controller) {
@@ -41,7 +53,11 @@ export class FileSystemStorage {
         }
     }
 
-    async put(key: string, value: string | ArrayBuffer | ReadableStream): Promise<void> {
+    async put(
+        key: string,
+        value: string | ArrayBuffer | ReadableStream | Uint8Array,
+        _options?: { httpMetadata?: { contentType?: string } },
+    ): Promise<void> {
         const filePath = this.resolvePath(key);
         const dir = dirname(filePath);
         if (!existsSync(dir)) {
@@ -51,6 +67,8 @@ export class FileSystemStorage {
             await writeFile(filePath, value, 'utf-8');
         } else if (value instanceof ArrayBuffer) {
             await writeFile(filePath, Buffer.from(value));
+        } else if (value instanceof Uint8Array) {
+            await writeFile(filePath, value);
         } else {
             const reader = value.getReader();
             const chunks: Uint8Array[] = [];
