@@ -8,12 +8,15 @@ import { MemoryKVStore } from './kv-store';
 import { InMemoryRateLimiter } from './rate-limiter';
 import { FileSystemStorage } from './storage';
 import { StaticFileServer } from './static-server';
+import { AgentNamespace } from './agents-compat';
+import { SmartCodeGeneratorAgent } from '../agents/core/smartGeneratorAgent';
+import { DORateLimitStore } from '../services/rate-limit/DORateLimitStore';
+import type { Agent } from './agents-compat';
 
 function requireEnv(key: string): string {
     const value = process.env[key];
     if (!value) {
-        console.warn(`Warning: Environment variable ${key} is not set`);
-        return '';
+        throw new Error(`Required environment variable ${key} is not set`);
     }
     return value;
 }
@@ -24,9 +27,22 @@ function optionalEnv(key: string, defaultValue = ''): string {
 
 export function createStandaloneEnv(): Env {
     const dataDir = optionalEnv('DATA_DIR', join(process.cwd(), '.data'));
-    const distDir = optionalEnv('DIST_DIR', join(process.cwd(), 'dist', 'client'));
+    const distDir = optionalEnv('DIST_DIR', join(process.cwd(), 'dist'));
 
-    return {
+    // Create a temporary env reference so the AgentNamespace factories can
+    // capture it via closure. We mutate `env` after construction so the
+    // factories always see the fully-built object.
+    let env: Env;
+
+    const codeGenNamespace = new AgentNamespace<SmartCodeGeneratorAgent>((_name) => {
+        return new SmartCodeGeneratorAgent(env, {} as SmartCodeGeneratorAgent['state']);
+    }) as unknown as DurableObjectNamespace;
+
+    const rateLimitNamespace = new AgentNamespace<DORateLimitStore & Agent<unknown, unknown>>((_name) => {
+        return new DORateLimitStore() as DORateLimitStore & Agent<unknown, unknown>;
+    }) as unknown as DurableObjectNamespace;
+
+    env = {
         // KV Store (in-memory)
         VibecoderStore: new MemoryKVStore() as unknown as KVNamespace,
 
@@ -92,7 +108,7 @@ export function createStandaloneEnv(): Env {
 
         // Standalone service implementations
         TEMPLATES_BUCKET: new FileSystemStorage(join(dataDir, 'templates')) as unknown as R2Bucket,
-        DB: null as unknown as D1Database, // Replaced by direct better-sqlite3 connection
+        DB: null as unknown as D1Database,
         DISPATCHER: null as unknown as DispatchNamespace,
         API_RATE_LIMITER: new InMemoryRateLimiter(200, 60) as unknown as RateLimit,
         AUTH_RATE_LIMITER: new InMemoryRateLimiter(20, 60) as unknown as RateLimit,
@@ -101,9 +117,11 @@ export function createStandaloneEnv(): Env {
         CF_VERSION_METADATA: { id: optionalEnv('APP_VERSION', 'standalone-dev') } as unknown as WorkerVersionMetadata,
         ASSETS: new StaticFileServer(distDir) as unknown as Fetcher,
 
-        // Agent registries are set up in server.ts after agent classes are available
-        CodeGenObject: null as unknown as DurableObjectNamespace,
+        // Agent namespace registries (lazy-create agents on getByName)
+        CodeGenObject: codeGenNamespace,
         Sandbox: null as unknown as DurableObjectNamespace,
-        DORateLimitStore: null as unknown as DurableObjectNamespace,
+        DORateLimitStore: rateLimitNamespace,
     };
+
+    return env;
 }

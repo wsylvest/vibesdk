@@ -4,18 +4,22 @@
  */
 
 import { readFile, writeFile, mkdir, unlink, readdir, stat } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 
 export class FileSystemStorage {
     private basePath: string;
 
     constructor(basePath: string) {
-        this.basePath = basePath;
+        this.basePath = resolve(basePath);
     }
 
     private resolvePath(key: string): string {
-        return join(this.basePath, key);
+        const resolved = resolve(this.basePath, key);
+        if (!resolved.startsWith(this.basePath)) {
+            throw new Error(`Path traversal detected: ${key}`);
+        }
+        return resolved;
     }
 
     async get(key: string): Promise<{ text(): Promise<string>; arrayBuffer(): Promise<ArrayBuffer>; body: ReadableStream } | null> {

@@ -19,7 +19,11 @@ export class MemoryKVStore {
             return null;
         }
         if (type === 'json') {
-            return JSON.parse(entry.value) as Record<string, unknown>;
+            try {
+                return JSON.parse(entry.value) as Record<string, unknown>;
+            } catch {
+                return null;
+            }
         }
         return entry.value;
     }

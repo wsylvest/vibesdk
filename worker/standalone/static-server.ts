@@ -4,7 +4,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { join, extname, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 
 const MIME_TYPES: Record<string, string> = {
@@ -34,25 +34,33 @@ export class StaticFileServer {
     private distDir: string;
 
     constructor(distDir: string) {
-        this.distDir = distDir;
+        this.distDir = resolve(distDir);
+    }
+
+    private safePath(pathname: string): string | null {
+        const resolved = resolve(this.distDir, '.' + pathname);
+        if (!resolved.startsWith(this.distDir)) {
+            return null;
+        }
+        return resolved;
     }
 
     async fetch(request: Request): Promise<Response> {
         const url = new URL(request.url);
-        let pathname = url.pathname;
+        const pathname = url.pathname;
 
         // Try the exact file path first
-        let filePath = join(this.distDir, pathname);
+        const filePath = this.safePath(pathname);
 
-        if (existsSync(filePath) && !filePath.endsWith('/')) {
+        if (filePath && existsSync(filePath) && !filePath.endsWith('/')) {
             return this.serveFile(filePath);
         }
 
         // Try with index.html for directories
         if (pathname.endsWith('/')) {
-            filePath = join(this.distDir, pathname, 'index.html');
-            if (existsSync(filePath)) {
-                return this.serveFile(filePath);
+            const dirIndex = this.safePath(pathname + 'index.html');
+            if (dirIndex && existsSync(dirIndex)) {
+                return this.serveFile(dirIndex);
             }
         }
 

@@ -1,5 +1,5 @@
 /**
- * Session Service for managing user sessions in D1
+ * Session Service for managing user sessions
  * Provides session creation, validation, and cleanup
  */
 
@@ -26,7 +26,7 @@ interface SessionConfig {
 }
 
 /**
- * Session Service for D1-based session management
+ * Session Service for database-based session management
  */
 export class SessionService extends BaseService {
     static readonly config: SessionConfig = {
@@ -263,13 +263,14 @@ export class SessionService extends BaseService {
             const now = new Date();
             
             // Delete expired sessions
-            await this.db.db
+            const result = await this.db.db
                 .delete(schema.sessions)
                 .where(lt(schema.sessions.expiresAt, now));
-            
-            logger.info('Cleaned up expired sessions');
-            
-            return 0; // D1 doesn't return count
+
+            const deletedCount = result.rowsAffected ?? 0;
+            logger.info('Cleaned up expired sessions', { deletedCount });
+
+            return deletedCount;
         } catch (error) {
             logger.error('Error cleaning up sessions', error);
             return 0;

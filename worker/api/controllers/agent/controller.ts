@@ -1,4 +1,3 @@
-import { WebSocketMessageResponses } from '../../../agents/constants';
 import { BaseController } from '../baseController';
 import { generateId } from '../../../utils/idGenerator';
 import { CodeGenState } from '../../../agents/core/state';
@@ -208,31 +207,22 @@ export class CodingAgentController extends BaseController {
             });
 
             try {
-                // Get the agent instance to handle the WebSocket connection
-                const agentInstance = await getAgentStub(env, chatId, true, this.logger);
-                
+                // Verify the agent instance exists (lazy-creates via namespace if needed)
+                await getAgentStub(env, chatId, true, this.logger);
+
                 this.logger.info(`Successfully got agent instance for chat: ${chatId}`);
 
-                // Let the agent handle the WebSocket connection directly
-                return agentInstance.fetch(request);
+                // In standalone mode, the actual WebSocket upgrade is handled at the
+                // HTTP server layer (server.ts 'upgrade' event). This Hono handler
+                // only validates the request. Return 101 to signal the framework
+                // that the upgrade will be handled externally.
+                return new Response(null, { status: 101 });
             } catch (error) {
                 this.logger.error(`Failed to get agent instance with ID ${chatId}:`, error);
-                // Return an appropriate WebSocket error response
-                // We need to emulate a WebSocket response even for errors
-                const { 0: client, 1: server } = new WebSocketPair();
-
-                (server as WebSocket & { accept(): void }).accept();
-                server.send(JSON.stringify({
-                    type: WebSocketMessageResponses.ERROR,
-                    error: `Failed to get agent instance: ${error instanceof Error ? error.message : String(error)}`
-                }));
-
-                server.close(1011, 'Agent instance not found');
-
-                return new Response(null, {
-                    status: 101,
-                    webSocket: client
-                } as ResponseInit);
+                return new Response(
+                    JSON.stringify({ error: `Agent not found: ${error instanceof Error ? error.message : String(error)}` }),
+                    { status: 404, headers: { 'Content-Type': 'application/json' } }
+                );
             }
         } catch (error) {
             this.logger.error('Error handling WebSocket connection', error);

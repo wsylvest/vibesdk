@@ -1,16 +1,24 @@
 /**
  * Compatibility layer replacing the 'agents' package for standalone mode.
  * Provides Agent base class, Connection type, and getAgentByName functionality.
+ *
+ * Key differences from Cloudflare Durable Objects:
+ *  - State lives in-memory (lost on restart — persistence requires external store)
+ *  - WebSocket upgrade uses Node.js `ws` library (no WebSocketPair)
+ *  - Agent instances are managed by AgentNamespace registries
  */
+
+import { WebSocketServer, WebSocket as WsWebSocket } from 'ws';
+import type { IncomingMessage } from 'node:http';
+import type { Duplex } from 'node:stream';
 
 /**
  * Connection type matching the 'agents' package Connection interface.
- * Extends WebSocket with an id property for agent tracking.
  */
 export type Connection = WebSocket & { id: string };
 
 /**
- * Stub context object mimicking DurableObjectState for WebSocket tracking.
+ * Stub context mimicking DurableObjectState for WebSocket tracking.
  */
 class AgentContext {
     private websockets: WebSocket[] = [];
@@ -30,13 +38,12 @@ class AgentContext {
 
 /**
  * Agent base class replacing the 'agents' package Agent<Env, State>.
- * Provides state management and WebSocket connection tracking without Durable Objects.
+ * Provides state management and WebSocket connection tracking.
  */
 export class Agent<TEnv, TState> {
     env: TEnv;
     state: TState;
     ctx: AgentContext;
-    private _initialized = false;
 
     constructor(env: TEnv, initialState: TState) {
         this.env = env;
@@ -52,14 +59,6 @@ export class Agent<TEnv, TState> {
         return this.ctx.getWebSockets();
     }
 
-    addConnection(conn: Connection): void {
-        this.ctx.acceptWebSocket(conn);
-    }
-
-    removeConnection(conn: Connection): void {
-        this.ctx.removeWebSocket(conn);
-    }
-
     setState(newState: TState): void {
         this.state = { ...newState };
     }
@@ -73,33 +72,18 @@ export class Agent<TEnv, TState> {
     }
 
     isInitialized(): boolean | Promise<boolean> {
-        return this._initialized;
+        return false;
     }
 
-    markInitialized(): void {
-        this._initialized = true;
-    }
-
-    async fetch(request: Request): Promise<Response> {
-        const upgradeHeader = request.headers.get('Upgrade');
-        if (upgradeHeader === 'websocket') {
-            const { 0: client, 1: server } = new WebSocketPair();
-            const id = crypto.randomUUID();
-            const conn = Object.assign(server, { id }) as Connection;
-            (server as WebSocket & { accept?: () => void }).accept?.();
-            this.ctx.acceptWebSocket(server);
-            this.onConnect(conn, {});
-            server.addEventListener('message', (event) => {
-                this.onMessage(conn, typeof event.data === 'string' ? event.data : String(event.data));
-            });
-            server.addEventListener('close', (event) => {
-                this.ctx.removeWebSocket(server);
-                this.onClose(conn, event.code, event.reason);
-            });
-            return new Response(null, { status: 101, webSocket: client } as ResponseInit);
-        }
+    /**
+     * Handle an HTTP request. For non-upgrade requests subclasses can override.
+     * WebSocket upgrades are handled externally via handleUpgrade() + attachWebSocket().
+     */
+    async fetch(_request: Request): Promise<Response> {
         return new Response('Not found', { status: 404 });
     }
+
+    // --- WebSocket lifecycle hooks (override in subclass) ---
 
     onConnect(_connection: Connection, _ctx: unknown): void {
         // Override in subclass
@@ -112,13 +96,84 @@ export class Agent<TEnv, TState> {
     onClose(_connection: Connection, _code?: number, _reason?: string): void {
         // Override in subclass
     }
+
+    /**
+     * Attach a raw `ws` WebSocket to this agent. Called after the HTTP→WS
+     * upgrade completes. Wraps the `ws` socket as a Connection and hooks
+     * up the lifecycle events.
+     */
+    attachWebSocket(rawWs: WsWebSocket): Connection {
+        const id = crypto.randomUUID();
+        const conn = rawWs as unknown as Connection;
+
+        Object.defineProperty(conn, 'id', { value: id, writable: false, enumerable: true });
+
+        this.ctx.acceptWebSocket(conn as unknown as WebSocket);
+
+        try { this.onConnect(conn, {}); } catch (e) { console.error('[Agent] onConnect error:', e); }
+
+        rawWs.on('message', (data: Buffer | string) => {
+            const message = typeof data === 'string' ? data : data.toString('utf-8');
+            try { this.onMessage(conn, message); } catch (e) { console.error('[Agent] onMessage error:', e); }
+        });
+
+        rawWs.on('close', (code: number, reason: Buffer) => {
+            this.ctx.removeWebSocket(conn as unknown as WebSocket);
+            try { this.onClose(conn, code, reason.toString('utf-8')); } catch (e) { console.error('[Agent] onClose error:', e); }
+        });
+
+        return conn;
+    }
 }
 
+// ---------------------------------------------------------------------------
+// Agent Namespace — replaces DurableObjectNamespace for standalone mode
+// ---------------------------------------------------------------------------
+
+type AgentFactory<T> = (name: string) => T;
+
 /**
- * In-memory agent registry replacing DurableObjectNamespace + getAgentByName.
- * Stores agent instances by name (agentId).
+ * In-memory namespace that lazily creates agent instances on getByName().
+ * Implements the DurableObjectNamespace shape so it can be placed directly
+ * on env.CodeGenObject / env.DORateLimitStore and called identically.
  */
-const agentInstances = new Map<string, Agent<unknown, unknown>>();
+export class AgentNamespace<T extends Agent<unknown, unknown>> {
+    private instances = new Map<string, T>();
+    private factory: AgentFactory<T>;
+
+    constructor(factory: AgentFactory<T>) {
+        this.factory = factory;
+    }
+
+    getByName(name: string): T {
+        let instance = this.instances.get(name);
+        if (!instance) {
+            instance = this.factory(name);
+            this.instances.set(name, instance);
+        }
+        return instance;
+    }
+
+    get(id: string): T {
+        return this.getByName(id);
+    }
+
+    idFromName(name: string): { toString(): string } {
+        return { toString: () => name };
+    }
+
+    has(name: string): boolean {
+        return this.instances.has(name);
+    }
+
+    delete(name: string): boolean {
+        return this.instances.delete(name);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// getAgentByName — drop-in replacement for the 'agents' package export
+// ---------------------------------------------------------------------------
 
 interface GetAgentOptions {
     locationHint?: string;
@@ -126,45 +181,44 @@ interface GetAgentOptions {
 }
 
 /**
- * Replacement for `getAgentByName` from the 'agents' package.
- * Retrieves or creates an agent instance by name from the in-memory registry.
+ * Replacement for getAgentByName from the 'agents' package.
+ * Delegates to AgentNamespace.getByName() which lazily creates agents
+ * (matching the Durable Object auto-instantiation pattern).
  */
 export function getAgentByName<TEnv, TAgent extends Agent<TEnv, unknown>>(
-    _namespace: unknown,
+    namespace: unknown,
     name: string,
     _options?: GetAgentOptions,
 ): TAgent {
-    const existing = agentInstances.get(name);
-    if (existing) {
-        return existing as TAgent;
+    const ns = namespace as AgentNamespace<Agent<unknown, unknown>>;
+    return ns.getByName(name) as TAgent;
+}
+
+// ---------------------------------------------------------------------------
+// Shared WebSocketServer for all agent upgrades
+// ---------------------------------------------------------------------------
+
+let _wss: WebSocketServer | null = null;
+
+function getOrCreateWss(): WebSocketServer {
+    if (!_wss) {
+        _wss = new WebSocketServer({ noServer: true });
     }
-    throw new Error(`Agent '${name}' not found. Create it first via the agent controller.`);
+    return _wss;
 }
 
 /**
- * Register an agent instance in the global registry.
+ * Perform an HTTP→WebSocket upgrade and attach the resulting socket to the
+ * given agent. Call this from the HTTP server's 'upgrade' event handler.
  */
-export function registerAgent(name: string, agent: Agent<unknown, unknown>): void {
-    agentInstances.set(name, agent);
-}
-
-/**
- * Check if an agent exists in the registry.
- */
-export function hasAgent(name: string): boolean {
-    return agentInstances.has(name);
-}
-
-/**
- * Create and register a new agent instance.
- */
-export function createAndRegisterAgent<TEnv, TState>(
-    name: string,
-    env: TEnv,
-    initialState: TState,
-    AgentClass: new (env: TEnv, initialState: TState) => Agent<TEnv, TState>,
-): Agent<TEnv, TState> {
-    const agent = new AgentClass(env, initialState);
-    agentInstances.set(name, agent as Agent<unknown, unknown>);
-    return agent;
+export function handleUpgrade(
+    agent: Agent<unknown, unknown>,
+    request: IncomingMessage,
+    socket: Duplex,
+    head: Buffer,
+): void {
+    const wss = getOrCreateWss();
+    wss.handleUpgrade(request, socket, head, (ws) => {
+        agent.attachWebSocket(ws);
+    });
 }

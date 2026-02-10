@@ -47,10 +47,8 @@ export abstract class BaseService {
     }
 
     /**
-     * Get read-optimized database connection using D1 read replicas
-     * For read-only queries to reduce global latency
-     * 
-     * @param strategy - 'fast' for lowest latency, 'fresh' for latest data
+     * Get read-optimized database connection.
+     * In standalone mode this returns the same connection (no read replicas).
      */
     protected getReadDb(strategy: 'fast' | 'fresh' = 'fast') {
         return this.db.getReadDb(strategy);

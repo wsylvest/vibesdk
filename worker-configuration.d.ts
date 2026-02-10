@@ -110,16 +110,6 @@ declare const caches: {
 // AI Gateway provider type (originally from Cloudflare runtime types)
 type AIGatewayProviders = 'openai' | 'anthropic' | 'google' | 'azure-openai' | 'groq' | 'cerebras' | 'openrouter' | string;
 
-// WebSocket pair for upgrade responses (Cloudflare Workers pattern)
-declare class WebSocketPair {
-	0: WebSocket;
-	1: WebSocket;
-}
-
-// Response extension for WebSocket upgrade (Cloudflare Workers pattern)
-interface ResponseInit {
-	webSocket?: WebSocket;
-}
 
 interface Env {
 	// KV Store
