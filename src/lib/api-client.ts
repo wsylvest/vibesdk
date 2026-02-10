@@ -257,8 +257,6 @@ class ApiClient {
 		if (endpoint.includes('/api/agent')) return 'to create applications';
 		if (endpoint.includes('/favorite')) return 'to favorite this app';
 		if (endpoint.includes('/star')) return 'to star this app';
-		// if (endpoint.includes('/fork')) return 'to fork this app';
-		// if (endpoint.includes('/apps')) return 'to access your apps';
 		if (endpoint.includes('/profile')) return 'to access your profile';
 		if (endpoint.includes('/settings')) return 'to access settings';
 		return 'to continue';

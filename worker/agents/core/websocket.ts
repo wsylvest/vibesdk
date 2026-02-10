@@ -211,30 +211,6 @@ export function handleWebSocketMessage(agent: SimpleCodeGeneratorAgent, connecti
                     sendError(connection, `Error fetching model configurations: ${error instanceof Error ? error.message : String(error)}`);
                 });
                 break;
-            // Disabled it for now
-            // case WebSocketMessageRequests.TERMINAL_COMMAND:
-            //     // Handle terminal command execution
-            //     logger.info('Received terminal command', {
-            //         command: parsedMessage.command,
-            //         timestamp: parsedMessage.timestamp
-            //     });
-                
-            //     if (!parsedMessage.command) {
-            //         sendError(connection, 'No command provided');
-            //         return;
-            //     }
-                
-            //     // Execute terminal command  
-            //     agent.executeTerminalCommand(parsedMessage.command, connection as any)
-            //         .catch((error: unknown) => {
-            //             logger.error('Error executing terminal command:', error);
-            //             sendToConnection(connection, WebSocketMessageResponses.TERMINAL_OUTPUT, {
-            //                 output: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            //                 outputType: 'stderr' as const,
-            //                 timestamp: Date.now()
-            //             });
-            //         });
-            //     break;
             default:
                 sendError(connection, `Unknown message type: ${parsedMessage.type}`);
         }

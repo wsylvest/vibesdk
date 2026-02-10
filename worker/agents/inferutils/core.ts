@@ -16,7 +16,6 @@ import {
 import { Message, MessageContent, MessageRole } from './common';
 import { ToolCallResult, ToolDefinition } from '../tools/types';
 import { AgentActionKey, AIModels, InferenceMetadata } from './config.types';
-// import { SecretsService } from '../../database';
 import { RateLimitService } from '../../services/rate-limit/rateLimits';
 import { AuthUser } from '../../types/auth-types';
 import { getUserConfigurableSettings } from '../../config';

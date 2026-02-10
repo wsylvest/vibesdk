@@ -17,7 +17,6 @@ import { ProjectSetupAssistant } from '../assistants/projectsetup';
 import { UserConversationProcessor } from '../operations/UserConversationProcessor';
 import { FileManager } from '../services/implementations/FileManager';
 import { StateManager } from '../services/implementations/StateManager';
-// import { WebSocketBroadcaster } from '../services/implementations/WebSocketBroadcaster';
 import { GenerationContext } from '../domain/values/GenerationContext';
 import { IssueReport } from '../domain/values/IssueReport';
 import { PhaseImplementationOperation } from '../operations/PhaseImplementation';
@@ -25,7 +24,6 @@ import { CodeReviewOperation } from '../operations/CodeReview';
 import { FileRegenerationOperation } from '../operations/FileRegeneration';
 import { PhaseGenerationOperation } from '../operations/PhaseGeneration';
 import { ScreenshotAnalysisOperation } from '../operations/ScreenshotAnalysis';
-// Database schema imports removed - using zero-storage OAuth flow
 import { BaseSandboxService } from '../../services/sandbox/BaseSandboxService';
 import { getSandboxService } from '../../services/sandbox/factory';
 import { WebSocketMessageData, WebSocketMessageType } from '../../api/websocketTypes';

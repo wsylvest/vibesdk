@@ -160,13 +160,13 @@ export function useGitHubExport(_websocket?: WebSocket | null, agentId?: string)
                     }
                 }));
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             setState(prev => ({
                 ...prev,
                 isExporting: false,
                 result: {
                     success: false,
-                    error: error?.message || 'Failed to initiate GitHub export'
+                    error: error instanceof Error ? error.message : 'Failed to initiate GitHub export'
                 }
             }));
         }

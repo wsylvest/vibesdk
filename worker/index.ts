@@ -3,16 +3,11 @@ import { SmartCodeGeneratorAgent } from './agents/core/smartGeneratorAgent';
 import { proxyToSandbox } from '@cloudflare/sandbox';
 import { isDispatcherAvailable } from './utils/dispatcherUtils';
 import { createApp } from './app';
-// import * as Sentry from '@sentry/cloudflare';
-// import { sentryOptions } from './observability/sentry';
 import { DORateLimitStore as BaseDORateLimitStore } from './services/rate-limit/DORateLimitStore';
 import { getPreviewDomain } from './utils/urls';
 
-// Durable Object and Service exports
 export { UserAppSandboxService, DeployerService } from './services/sandbox/sandboxSdkClient';
 
-// export const CodeGeneratorAgent = Sentry.instrumentDurableObjectWithSentry(sentryOptions, SmartCodeGeneratorAgent);
-// export const DORateLimitStore = Sentry.instrumentDurableObjectWithSentry(sentryOptions, BaseDORateLimitStore);
 export const CodeGeneratorAgent = SmartCodeGeneratorAgent;
 export const DORateLimitStore = BaseDORateLimitStore;
 
@@ -83,9 +78,9 @@ async function handleUserAppRequest(request: Request, env: Env): Promise<Respons
 			statusText: dispatcherResponse.statusText,
 			headers,
 		});
-	} catch (error: any) {
-		// This block catches errors if the binding doesn't exist or if worker.fetch() fails.
-		logger.warn(`Error dispatching to worker '${appName}': ${error.message}`);
+	} catch (error: unknown) {
+		const message = error instanceof Error ? error.message : String(error);
+		logger.warn(`Error dispatching to worker '${appName}': ${message}`);
 		return new Response('An error occurred while loading this application.', { status: 500 });
 	}
 }
@@ -144,6 +139,3 @@ const worker = {
 } satisfies ExportedHandler<Env>;
 
 export default worker;
-
-// Wrap the entire worker with Sentry for comprehensive error monitoring.
-// export default Sentry.withSentry(sentryOptions, worker);

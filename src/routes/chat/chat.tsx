@@ -195,9 +195,6 @@ export default function Chat() {
 
 	const hasSeenPreview = useRef(false);
 	const hasSwitchedFile = useRef(false);
-	// const wasChatDisabled = useRef(true);
-	// const hasShownWelcome = useRef(false);
-
 	const editorRef = useRef<HTMLDivElement>(null);
 	const previewRef = useRef<HTMLIFrameElement>(null);
 	const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -239,27 +236,6 @@ export default function Chat() {
 	const handleViewModeChange = useCallback((mode: 'preview' | 'editor' | 'blueprint') => {
 		setView(mode);
 	}, []);
-
-	// // Terminal functions
-	// const handleTerminalCommand = useCallback((command: string) => {
-	// 	if (websocket && websocket.readyState === WebSocket.OPEN) {
-	// 		// Add command to terminal logs
-	// 		const commandLog: TerminalLog = {
-	// 			id: `cmd-${Date.now()}`,
-	// 			content: command,
-	// 			type: 'command',
-	// 			timestamp: Date.now()
-	// 		};
-	// 		setTerminalLogs(prev => [...prev, commandLog]);
-
-	// 		// Send command via WebSocket
-	// 		websocket.send(JSON.stringify({
-	// 			type: 'terminal_command',
-	// 			command,
-	// 			timestamp: Date.now()
-	// 		}));
-	// 	}
-	// }, [websocket, setTerminalLogs]);
 
 	const generatingCount = useMemo(
 		() =>

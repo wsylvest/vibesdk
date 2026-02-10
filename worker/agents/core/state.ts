@@ -2,7 +2,6 @@ import type { Blueprint, ClientReportedErrorType, PhaseConceptType ,
     FileOutputType,
 } from '../schemas';
 import type { TemplateDetails } from '../../services/sandbox/sandboxTypes';
-// import type { ScreenshotData } from './types';
 import type { ConversationMessage } from '../inferutils/common';
 import type { InferenceContext } from '../inferutils/config.types';
 
@@ -14,7 +13,6 @@ export interface FileState extends FileOutputType {
 }
 
 export interface PhaseState extends PhaseConceptType {
-    // deploymentNeeded: boolean;
     completed: boolean;
 }
 
@@ -39,11 +37,8 @@ export interface CodeGenState {
     lastPackageJson?: string; // Last package.json file contents
     templateDetails: TemplateDetails;   // TODO: Remove this from state and rely on directly fetching from sandbox
     sandboxInstanceId?: string;
-    // previewURL?: string;
-    // tunnelURL?: string;
     clientReportedErrors: ClientReportedErrorType[];
-    // latestScreenshot?: ScreenshotData; // Store captured screenshot
-    shouldBeGenerating: boolean; // Persistent flag indicating generation should be active
+    shouldBeGenerating: boolean;
     mvpGenerated: boolean;
     reviewingInitiated: boolean;
     agentMode: 'deterministic' | 'smart';

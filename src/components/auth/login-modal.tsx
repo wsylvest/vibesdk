@@ -9,11 +9,6 @@ import { X, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { useAuth } from '@/contexts/auth-context';
-// import {
-// 	validateEmail,
-// 	validatePassword,
-// 	validateDisplayName,
-// } from '../../utils/validationUtils';
 
 interface LoginModalProps {
 	isOpen: boolean;

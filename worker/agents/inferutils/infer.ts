@@ -1,7 +1,6 @@
 import { infer, InferError, InferResponseString, InferResponseObject } from './core';
 import { createAssistantMessage, createUserMessage, Message } from './common';
 import z from 'zod';
-// import { CodeEnhancementOutput, CodeEnhancementOutputType } from '../codegen/phasewiseGenerator';
 import { SchemaFormat } from './schemaFormatters';
 import { ReasoningEffort } from 'openai/resources.mjs';
 import { AgentActionKey, AIModels, InferenceContext, ModelConfig } from './config.types';

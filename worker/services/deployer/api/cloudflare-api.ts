@@ -53,7 +53,7 @@ export class CloudflareAPI {
 			);
 		}
 
-		const data = (await response.json()) as any;
+		const data = (await response.json()) as { result: UploadAssetSession };
 		return data.result;
 	}
 
@@ -108,7 +108,7 @@ export class CloudflareAPI {
 
 		// Status 201 indicates all files uploaded, returns completion token
 		if (response.status === 201) {
-			const data = (await response.json()) as any;
+			const data = (await response.json()) as { result?: { jwt?: string } };
 			return data.result?.jwt || null;
 		}
 

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// import { useNavigate } from 'react-router';
 import {
 	Eye,
 	EyeOff,
@@ -25,7 +24,6 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/auth-context';
-// import { useTheme } from '@/contexts/theme-context';
 import { Badge } from '@/components/ui/badge';
 import {
 	AlertDialog,
@@ -70,9 +68,6 @@ export default function SettingsPage() {
 	const [activeSessions, setActiveSessions] = useState<
 		ActiveSessionsData & { loading: boolean }
 	>({ sessions: [], loading: true });
-
-	// API Keys state - commented out since not used
-	// const [apiKeys, setApiKeys] = useState<ApiKeysData & { loading: boolean }>({ keys: [], loading: true });
 
 	// User Secrets state
 	const [userSecrets, setUserSecrets] = useState<{
@@ -123,44 +118,6 @@ export default function SettingsPage() {
 		loadUserSecrets();
 		loadModelConfigs(); // Refresh model configs since BYOK provider availability changed
 	};
-
-	// const handleSaveProfile = async () => {
-	// 	if (isSaving) return;
-
-	// 	try {
-	// 		setIsSaving(true);
-
-	// 		const response = await fetch('/api/auth/profile', {
-	// 			method: 'PUT',
-	// 			credentials: 'include',
-	// 			headers: {
-	// 				'Content-Type': 'application/json',
-	// 			},
-	// 			body: JSON.stringify({
-	// 				...profileData,
-	// 				theme: currentTheme,
-	// 			}),
-	// 		});
-
-	// 		const data = await response.json();
-
-	// 		if (response.ok && data.success) {
-	// 			toast.success('Profile settings saved');
-	// 			// Theme context is already updated by handleThemeChange
-	// 			// Refresh user data in auth context
-	// 			await refreshUser();
-	// 		} else {
-	// 			toast.error(
-	// 				data.error?.message || 'Failed to save profile settings',
-	// 			);
-	// 		}
-	// 	} catch (error) {
-	// 		console.error('Profile save error:', error);
-	// 		toast.error('Failed to save profile settings');
-	// 	} finally {
-	// 		setIsSaving(false);
-	// 	}
-	// };
 
 	// Helper function to format camelCase to human readable
 	const formatAgentConfigName = React.useCallback((key: string) => {

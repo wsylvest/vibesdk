@@ -4,7 +4,6 @@
  */
 
 import { ReasoningEffort } from "openai/resources.mjs";
-// import { LLMCallsRateLimitConfig } from "../../services/rate-limit/config";
 
 export enum AIModels {
     DISABLED = 'disabled',
@@ -36,9 +35,6 @@ export enum AIModels {
     OPENAI_5 = 'openai/gpt-5',
     OPENAI_5_MINI = 'openai/gpt-5-mini',
     OPENAI_OSS = 'openai/gpt-oss-120b',
-
-    // OPENROUTER_QWEN_3_CODER = '[openrouter]qwen/qwen3-coder',
-    // OPENROUTER_KIMI_2_5 = '[openrouter]moonshotai/kimi-k2',
 
     // Cerebras models
     CEREBRAS_GPT_OSS = 'cerebras/gpt-oss-120b',

@@ -90,7 +90,7 @@ export class AppService extends BaseService {
                 this.logger.error('executeRankedQuery failed', {
                     errorMessage: error instanceof Error ? error.message : String(error),
                     errorName: error instanceof Error ? error.name : 'UnknownError',
-                    errorCause: (error as any)?.cause,
+                    errorCause: error instanceof Error ? error.cause : undefined,
                     errorStack: error instanceof Error ? error.stack?.split('\n').slice(0, 5).join('\n') : undefined,
                     sort,
                     period,
@@ -162,7 +162,7 @@ export class AppService extends BaseService {
             this.logger.error('getPublicApps failed', {
                 errorMessage: error instanceof Error ? error.message : String(error),
                 errorName: error instanceof Error ? error.name : 'UnknownError',
-                errorCause: (error as any)?.cause,
+                errorCause: error instanceof Error ? error.cause : undefined,
                 errorType: error?.constructor?.name || 'Unknown',
                 options
             });

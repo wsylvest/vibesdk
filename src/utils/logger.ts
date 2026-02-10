@@ -30,11 +30,8 @@ export class Logger {
 	}
 
 	private formatMessage(_level: LogLevel, args: unknown[]): unknown[] {
-		// const time = new Date().toISOString();
 		const prefix = this.prefix ? `[${this.prefix}]` : '';
-		// return [`[${time}] ${prefix} [${level.toUpperCase()}]`, ...args];
 		return [prefix, ...args];
-		// return args;
 	}
 
 	debug(...args: unknown[]) {

@@ -216,36 +216,7 @@ export default function AppView() {
 				},
 				errorMessage: 'Failed to update star',
 			},
-			// fork: {
-			// 	action: 'fork',
-			// 	context: 'to remix this app',
-			// 	handler: async () => {
-			// 		if (!app) return;
-			// 		const response = await apiClient.forkApp(app.id);
-
-			// 		if (response.success && response.data) {
-			// 			toast.success(
-			// 				response.data.message ||
-			// 					'App remixed successfully!',
-			// 			);
-
-			// 			// Emit app-created event for sidebar updates
-			// 			appEvents.emitAppCreated(response.data.forkedAppId, {
-			// 				title: `${app.title} (Remix)`,
-			// 				description: app.description || undefined,
-			// 				isForked: true,
-			// 			});
-
-			// 			navigate(`/chat/${response.data.forkedAppId}`);
-			// 		} else {
-			// 			throw new Error(
-			// 				response.error?.message || 'Failed to remix app',
-			// 			);
-			// 		}
-			// 	},
-			// 	errorMessage: 'Failed to remix app',
-			// },
-		}),
+			}),
 		[app],
 	);
 
@@ -296,11 +267,6 @@ export default function AppView() {
 		() => createAuthenticatedHandler('star'),
 		[createAuthenticatedHandler],
 	);
-	// const handleFork = useMemo(
-	// 	() => createAuthenticatedHandler('fork'),
-	// 	[createAuthenticatedHandler],
-	// );
-
 	// Handle pending actions after OAuth redirect
 	const executePendingAction = useCallback(
 		async (action: PendingAction) => {

@@ -717,7 +717,7 @@ export class AuthService extends BaseService {
                     logger.error('getUserForAuth query failed', {
                         errorMessage: error instanceof Error ? error.message : String(error),
                         errorName: error instanceof Error ? error.name : 'UnknownError',
-                        errorCause: (error as any)?.cause,
+                        errorCause: error instanceof Error ? error.cause : undefined,
                         errorStack: error instanceof Error ? error.stack?.split('\n').slice(0, 5).join('\n') : undefined,
                         userId
                     });
@@ -734,7 +734,7 @@ export class AuthService extends BaseService {
             logger.error('Error getting user for auth', {
                 errorMessage: error instanceof Error ? error.message : String(error),
                 errorName: error instanceof Error ? error.name : 'UnknownError',
-                errorCause: (error as any)?.cause,
+                errorCause: error instanceof Error ? error.cause : undefined,
                 userId
             });
             return null;

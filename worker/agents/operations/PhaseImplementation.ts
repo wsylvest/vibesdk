@@ -5,7 +5,6 @@ import { executeInference } from '../inferutils/infer';
 import { issuesPromptFormatter, PROMPT_UTILS, STRATEGIES } from '../prompts';
 import { CodeGenerationStreamingState } from '../output-formats/streaming-formats/base';
 import { FileProcessing } from '../domain/pure/FileProcessing';
-// import { RealtimeCodeFixer } from '../assistants/realtimeCodeFixer';
 import { AgentOperation, getSystemPromptWithProjectContext, OperationOptions } from '../operations/common';
 import { SCOFFormat, SCOFParsingState } from '../output-formats/streaming-formats/scof';
 import { TemplateRegistry } from '../inferutils/schemaFormatters';
