@@ -6,6 +6,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, extname, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
+import type { StaticAssetServer } from '../types/service-bindings';
 
 const MIME_TYPES: Record<string, string> = {
     '.html': 'text/html',
@@ -30,7 +31,7 @@ const MIME_TYPES: Record<string, string> = {
     '.webmanifest': 'application/manifest+json',
 };
 
-export class StaticFileServer {
+export class StaticFileServer implements StaticAssetServer {
     private distDir: string;
 
     constructor(distDir: string) {

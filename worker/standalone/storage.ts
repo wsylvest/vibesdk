@@ -6,19 +6,9 @@
 import { readFile, writeFile, mkdir, unlink, readdir, stat } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
+import type { AppObjectStorage, AppObjectStorageItem } from '../types/service-bindings';
 
-/**
- * Return type for get() — mirrors the R2ObjectBody interface subset actually
- * used by the codebase (.text(), .arrayBuffer(), .json(), .body).
- */
-interface StorageObject {
-    text(): Promise<string>;
-    json(): Promise<unknown>;
-    arrayBuffer(): Promise<ArrayBuffer>;
-    body: ReadableStream;
-}
-
-export class FileSystemStorage {
+export class FileSystemStorage implements AppObjectStorage {
     private basePath: string;
 
     constructor(basePath: string) {
@@ -33,7 +23,7 @@ export class FileSystemStorage {
         return resolved;
     }
 
-    async get(key: string): Promise<StorageObject | null> {
+    async get(key: string): Promise<AppObjectStorageItem | null> {
         const filePath = this.resolvePath(key);
         try {
             const data = await readFile(filePath);

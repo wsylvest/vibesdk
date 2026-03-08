@@ -39,15 +39,15 @@ export function createStandaloneEnv(): Env {
 
     const codeGenNamespace = new AgentNamespace<SmartCodeGeneratorAgent>((_name) => {
         return new SmartCodeGeneratorAgent(env, { ...DEFAULT_CODEGEN_STATE });
-    }, agentStateDir) as unknown as DurableObjectNamespace;
+    }, agentStateDir);
 
     const rateLimitNamespace = new AgentNamespace<DORateLimitStore & Agent<unknown, unknown>>((_name) => {
         return new DORateLimitStore() as DORateLimitStore & Agent<unknown, unknown>;
-    }) as unknown as DurableObjectNamespace;
+    });
 
     env = {
         // KV Store (filesystem-backed)
-        VibecoderStore: new FileBackedKVStore(join(dataDir, 'kv-store.json')) as unknown as KVNamespace,
+        VibecoderStore: new FileBackedKVStore(join(dataDir, 'kv-store.json')),
 
         // String configuration variables
         TEMPLATES_REPOSITORY: optionalEnv('TEMPLATES_REPOSITORY', 'https://github.com/cloudflare/vibesdk-templates'),
@@ -110,22 +110,22 @@ export function createStandaloneEnv(): Env {
         SENTRY_DSN: optionalEnv('SENTRY_DSN'),
 
         // Standalone service implementations
-        TEMPLATES_BUCKET: new FileSystemStorage(join(dataDir, 'templates')) as unknown as R2Bucket,
-        API_RATE_LIMITER: new InMemoryRateLimiter(200, 60) as unknown as RateLimit,
-        AUTH_RATE_LIMITER: new InMemoryRateLimiter(20, 60) as unknown as RateLimit,
-        CF_VERSION_METADATA: { id: optionalEnv('APP_VERSION', 'standalone-dev') } as unknown as WorkerVersionMetadata,
-        ASSETS: new StaticFileServer(distDir) as unknown as Fetcher,
+        TEMPLATES_BUCKET: new FileSystemStorage(join(dataDir, 'templates')),
+        API_RATE_LIMITER: new InMemoryRateLimiter(200, 60),
+        AUTH_RATE_LIMITER: new InMemoryRateLimiter(20, 60),
+        CF_VERSION_METADATA: { id: optionalEnv('APP_VERSION', 'standalone-dev') },
+        ASSETS: new StaticFileServer(distDir),
 
         // Null stubs — these CF-only bindings are never accessed at runtime:
         //  DB: DatabaseService manages its own connection via @libsql/client
         //  AI/IMAGES: unused in codebase
         //  DISPATCHER: guarded by isDispatcherAvailable() null check
         //  Sandbox: guarded by SANDBOX_SERVICE_TYPE defaulting to 'runner'
-        DB: null as unknown as D1Database,
-        AI: null as unknown as Ai,
-        IMAGES: null as unknown as ImagesBinding,
-        DISPATCHER: null as unknown as DispatchNamespace,
-        Sandbox: null as unknown as DurableObjectNamespace,
+        DB: null,
+        AI: null,
+        IMAGES: null,
+        DISPATCHER: null,
+        Sandbox: null,
 
         // Agent namespace registries (lazy-create agents on getByName)
         CodeGenObject: codeGenNamespace,

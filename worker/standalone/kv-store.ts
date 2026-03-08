@@ -7,13 +7,14 @@
  */
 
 import { DebouncedFileWriter } from './debounced-file-writer';
+import type { AppKVStore } from '../types/service-bindings';
 
 interface KVEntry {
     value: string;
     expiration?: number;
 }
 
-export class FileBackedKVStore {
+export class FileBackedKVStore implements AppKVStore {
     private store = new Map<string, KVEntry>();
     private readonly writer: DebouncedFileWriter;
 

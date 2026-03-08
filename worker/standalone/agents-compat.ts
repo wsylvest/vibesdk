@@ -12,6 +12,7 @@ import { WebSocketServer, WebSocket as WsWebSocket } from 'ws';
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { AgentStatePersistence } from './state-persistence';
+import type { AgentNamespaceBinding } from '../types/service-bindings';
 
 /**
  * Connection type matching the 'agents' package Connection interface.
@@ -181,7 +182,7 @@ const EVICTION_CHECK_INTERVAL_MS = 60 * 1000;
  * Agents with no active WebSocket connections and no activity for longer
  * than `evictionTtlMs` are automatically evicted (state is flushed first).
  */
-export class AgentNamespace<T extends Agent<unknown, unknown>> {
+export class AgentNamespace<T extends Agent<unknown, unknown>> implements AgentNamespaceBinding<T> {
     private instances = new Map<string, T>();
     private factory: AgentFactory<T>;
     private stateDir: string | null;

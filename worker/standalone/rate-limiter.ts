@@ -3,6 +3,8 @@
  * Uses a simple sliding window counter approach with periodic cleanup.
  */
 
+import type { RateLimitBinding } from '../types/service-bindings';
+
 interface RateLimitEntry {
     count: number;
     windowStart: number;
@@ -10,7 +12,7 @@ interface RateLimitEntry {
 
 const CLEANUP_INTERVAL_MS = 60_000;
 
-export class InMemoryRateLimiter {
+export class InMemoryRateLimiter implements RateLimitBinding {
     private entries = new Map<string, RateLimitEntry>();
     private readonly windowMs: number;
     private readonly maxRequests: number;

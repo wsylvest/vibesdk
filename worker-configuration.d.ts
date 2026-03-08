@@ -1,87 +1,33 @@
 /* eslint-disable */
 /**
  * Standalone environment type definitions.
- * Replaces the Wrangler-generated Cloudflare types with standalone-compatible interfaces.
+ * Service binding types are defined in worker/types/service-bindings.ts.
+ * This file provides the Env interface and runtime type stubs.
  */
 
-// Standalone interface stubs for CF binding types used in the codebase
+import type {
+	AppKVStore,
+	AppKVPutOptions,
+	AppKVListResult,
+	AppKVListKey,
+	AppObjectStorage,
+	AgentNamespaceBinding,
+	RateLimitBinding,
+	StaticAssetServer,
+	VersionMetadata,
+	D1DatabaseBinding,
+	DispatchNamespaceBinding,
+	AiBinding,
+	ImagesBindingType,
+} from './worker/types/service-bindings';
+
+// Re-export KV types under their original names for downstream compatibility
+// (used in KVCache.ts)
+type KVNamespacePutOptions = AppKVPutOptions;
+type KVNamespaceListResult<T> = AppKVListResult & { keys: Array<AppKVListKey & { metadata?: T }> };
+type KVNamespaceListKey<T> = AppKVListKey & { metadata?: T };
 
 type HeadersInit = Record<string, string> | [string, string][] | Headers;
-
-interface KVNamespace {
-	get(key: string, type?: string): Promise<string | null>;
-	get(key: string, type: 'json'): Promise<unknown>;
-	put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
-	delete(key: string): Promise<void>;
-	list(options?: { prefix?: string; cursor?: string }): Promise<{
-		keys: Array<{ name: string }>;
-		list_complete: boolean;
-		cursor?: string;
-	}>;
-}
-
-interface KVNamespacePutOptions {
-	expirationTtl?: number;
-	expiration?: number;
-	metadata?: unknown;
-}
-
-interface KVNamespaceListResult<T> {
-	keys: KVNamespaceListKey<T>[];
-	list_complete: boolean;
-	cursor?: string;
-}
-
-interface KVNamespaceListKey<T> {
-	name: string;
-	expiration?: number;
-	metadata?: T;
-}
-
-interface R2Bucket {
-	get(key: string): Promise<{ text(): Promise<string>; json(): Promise<unknown>; arrayBuffer(): Promise<ArrayBuffer>; body: ReadableStream } | null>;
-	put(key: string, value: string | ArrayBuffer | ReadableStream | Uint8Array, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
-	delete(key: string): Promise<void>;
-	list(options?: { prefix?: string }): Promise<{ objects: Array<{ key: string; size: number }> }>;
-}
-
-interface D1Database {
-	prepare(query: string): unknown;
-	exec(query: string): Promise<unknown>;
-	batch(statements: unknown[]): Promise<unknown[]>;
-}
-
-interface DurableObjectNamespace<T = unknown> {
-	get(id: string): T;
-	getByName(name: string): T;
-	idFromName(name: string): { toString(): string };
-}
-
-interface DispatchNamespace {
-	get(name: string): { fetch(request: Request): Promise<Response> };
-}
-
-interface RateLimit {
-	limit(options: { key: string }): Promise<{ success: boolean }>;
-}
-
-interface Ai {
-	gateway(name: string): {
-		getUrl(provider?: string): Promise<string>;
-	};
-}
-
-interface ImagesBinding {
-	input(image: ArrayBuffer): { transform(options: unknown): { output(options: unknown): Promise<ArrayBuffer> } };
-}
-
-interface WorkerVersionMetadata {
-	id: string;
-}
-
-interface Fetcher {
-	fetch(request: Request): Promise<Response>;
-}
 
 interface ExecutionContext {
 	waitUntil(promise: Promise<unknown>): void;
@@ -106,14 +52,12 @@ declare const caches: {
 	}>;
 };
 
-
 // AI Gateway provider type (originally from Cloudflare runtime types)
 type AIGatewayProviders = 'openai' | 'anthropic' | 'google' | 'azure-openai' | 'groq' | 'cerebras' | 'openrouter' | string;
 
-
 interface Env {
 	// KV Store
-	VibecoderStore: KVNamespace;
+	VibecoderStore: AppKVStore;
 
 	// String configuration variables
 	TEMPLATES_REPOSITORY: string;
@@ -175,19 +119,21 @@ interface Env {
 	CF_ACCESS_SECRET: string;
 	SENTRY_DSN: string;
 
-	// Service bindings (standalone implementations)
-	CodeGenObject: DurableObjectNamespace;
-	Sandbox: DurableObjectNamespace;
-	DORateLimitStore: DurableObjectNamespace;
-	TEMPLATES_BUCKET: R2Bucket;
-	DB: D1Database;
-	DISPATCHER: DispatchNamespace;
-	API_RATE_LIMITER: RateLimit;
-	AUTH_RATE_LIMITER: RateLimit;
-	AI: Ai;
-	IMAGES: ImagesBinding;
-	CF_VERSION_METADATA: WorkerVersionMetadata;
-	ASSETS: Fetcher;
+	// Service bindings (application-level interfaces)
+	CodeGenObject: AgentNamespaceBinding;
+	DORateLimitStore: AgentNamespaceBinding;
+	TEMPLATES_BUCKET: AppObjectStorage;
+	API_RATE_LIMITER: RateLimitBinding;
+	AUTH_RATE_LIMITER: RateLimitBinding;
+	ASSETS: StaticAssetServer;
+	CF_VERSION_METADATA: VersionMetadata;
+
+	// Null-stub bindings — CF-only, never accessed or null-guarded at runtime
+	DB: D1DatabaseBinding | null;
+	AI: AiBinding | null;
+	IMAGES: ImagesBindingType | null;
+	DISPATCHER: DispatchNamespaceBinding | null;
+	Sandbox: AgentNamespaceBinding | null;
 }
 
 type StringifyValues<EnvType extends Record<string, unknown>> = {
