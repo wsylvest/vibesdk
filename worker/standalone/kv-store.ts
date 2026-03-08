@@ -2,14 +2,11 @@
  * Filesystem-backed KV store that implements the KVNamespace interface subset
  * used by the application. Replaces Cloudflare KV for standalone mode.
  *
- * Data is persisted to a JSON file with debounced writes so that platform
+ * Data is persisted to a JSON file via DebouncedFileWriter so that platform
  * configs, user configs, and wrangler configs survive process restarts.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { dirname } from 'node:path';
-
-const DEBOUNCE_MS = 2000;
+import { DebouncedFileWriter } from './debounced-file-writer';
 
 interface KVEntry {
     value: string;
@@ -18,19 +15,17 @@ interface KVEntry {
 
 export class FileBackedKVStore {
     private store = new Map<string, KVEntry>();
-    private dirty = false;
-    private timer: ReturnType<typeof setTimeout> | null = null;
-    private readonly filePath: string;
+    private readonly writer: DebouncedFileWriter;
 
     constructor(filePath: string) {
-        this.filePath = filePath;
-        this.loadSync();
+        this.writer = new DebouncedFileWriter(filePath);
+        this.loadFromDisk();
     }
 
-    private loadSync(): void {
+    private loadFromDisk(): void {
+        const raw = this.writer.readSync();
+        if (!raw) return;
         try {
-            if (!existsSync(this.filePath)) return;
-            const raw = readFileSync(this.filePath, 'utf-8');
             const entries = JSON.parse(raw) as Record<string, KVEntry>;
             const now = Date.now() / 1000;
             for (const [key, entry] of Object.entries(entries)) {
@@ -38,41 +33,18 @@ export class FileBackedKVStore {
                 this.store.set(key, entry);
             }
         } catch {
-            // Corrupt or missing file — start fresh
+            // Corrupt file — start fresh
         }
     }
 
     private scheduleSave(): void {
-        this.dirty = true;
-        if (this.timer) return;
-        this.timer = setTimeout(() => {
-            this.timer = null;
-            this.saveSync();
-        }, DEBOUNCE_MS);
-        if (this.timer.unref) {
-            this.timer.unref();
+        const obj: Record<string, KVEntry> = {};
+        const now = Date.now() / 1000;
+        for (const [key, entry] of this.store) {
+            if (entry.expiration && now > entry.expiration) continue;
+            obj[key] = entry;
         }
-    }
-
-    private saveSync(): void {
-        if (!this.dirty) return;
-        this.dirty = false;
-
-        try {
-            const dir = dirname(this.filePath);
-            if (!existsSync(dir)) {
-                mkdirSync(dir, { recursive: true });
-            }
-            const obj: Record<string, KVEntry> = {};
-            const now = Date.now() / 1000;
-            for (const [key, entry] of this.store) {
-                if (entry.expiration && now > entry.expiration) continue;
-                obj[key] = entry;
-            }
-            writeFileSync(this.filePath, JSON.stringify(obj), 'utf-8');
-        } catch (err) {
-            console.error('[KVStore] save error:', err);
-        }
+        this.writer.write(JSON.stringify(obj));
     }
 
     async get(key: string, type?: string): Promise<string | Record<string, unknown> | null> {

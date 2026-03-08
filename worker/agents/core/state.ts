@@ -50,8 +50,34 @@ export interface CodeGenState {
     currentDevState: CurrentDevState;
     reviewCycles?: number; // Number of review cycles for code review phase
     currentPhase?: PhaseConceptType; // Current phase being worked on
-    
+
     conversationMessages: ConversationMessage[];
     projectUpdatesAccumulator: string[];
     inferenceContext: InferenceContext;
-}  
+}
+
+/** Default empty state for agent construction. */
+export const DEFAULT_CODEGEN_STATE: CodeGenState = {
+    blueprint: {} as Blueprint,
+    query: '',
+    generatedPhases: [],
+    generatedFilesMap: {},
+    agentMode: 'deterministic',
+    generationPromise: undefined,
+    sandboxInstanceId: undefined,
+    templateDetails: {} as TemplateDetails,
+    commandsHistory: [],
+    lastPackageJson: '',
+    clientReportedErrors: [],
+    pendingUserInputs: [],
+    inferenceContext: {} as InferenceContext,
+    sessionId: '',
+    hostname: '',
+    conversationMessages: [],
+    currentDevState: CurrentDevState.IDLE,
+    phasesCounter: MAX_PHASES,
+    mvpGenerated: false,
+    shouldBeGenerating: false,
+    reviewingInitiated: false,
+    projectUpdatesAccumulator: [],
+};  

@@ -11,6 +11,7 @@ import { StaticFileServer } from './static-server';
 import { AgentNamespace } from './agents-compat';
 import { SmartCodeGeneratorAgent } from '../agents/core/smartGeneratorAgent';
 import { DORateLimitStore } from '../services/rate-limit/DORateLimitStore';
+import { DEFAULT_CODEGEN_STATE } from '../agents/core/state';
 import type { Agent } from './agents-compat';
 
 function requireEnv(key: string): string {
@@ -37,7 +38,7 @@ export function createStandaloneEnv(): Env {
     const agentStateDir = join(dataDir, 'agents');
 
     const codeGenNamespace = new AgentNamespace<SmartCodeGeneratorAgent>((_name) => {
-        return new SmartCodeGeneratorAgent(env, {} as SmartCodeGeneratorAgent['state']);
+        return new SmartCodeGeneratorAgent(env, { ...DEFAULT_CODEGEN_STATE });
     }, agentStateDir) as unknown as DurableObjectNamespace;
 
     const rateLimitNamespace = new AgentNamespace<DORateLimitStore & Agent<unknown, unknown>>((_name) => {

@@ -48,6 +48,9 @@ export class Agent<TEnv, TState> {
     private _persistence: AgentStatePersistence<TState> | null = null;
     private _hasPersistedState = false;
 
+    /** Timestamp of the last message or state change on this agent. */
+    lastActivityMs: number = Date.now();
+
     constructor(env: TEnv, initialState: TState) {
         this.env = env;
         this.state = { ...initialState };
@@ -79,6 +82,7 @@ export class Agent<TEnv, TState> {
     setState(newState: TState): void {
         this.state = { ...newState };
         this._hasPersistedState = true;
+        this.lastActivityMs = Date.now();
         this._persistence?.markDirty(this.state);
     }
 
@@ -128,10 +132,12 @@ export class Agent<TEnv, TState> {
         Object.defineProperty(conn, 'id', { value: id, writable: false, enumerable: true });
 
         this.ctx.acceptWebSocket(conn as unknown as WebSocket);
+        this.lastActivityMs = Date.now();
 
         try { this.onConnect(conn, {}); } catch (e) { console.error('[Agent] onConnect error:', e); }
 
         rawWs.on('message', (data: Buffer | string) => {
+            this.lastActivityMs = Date.now();
             const message = typeof data === 'string' ? data : data.toString('utf-8');
             try { this.onMessage(conn, message); } catch (e) { console.error('[Agent] onMessage error:', e); }
         });
@@ -143,6 +149,15 @@ export class Agent<TEnv, TState> {
 
         return conn;
     }
+
+    /**
+     * Flush pending state and release persistence resources.
+     * Called by AgentNamespace when evicting or deleting an agent.
+     */
+    dispose(): void {
+        this._persistence?.dispose();
+        this._persistence = null;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -151,6 +166,10 @@ export class Agent<TEnv, TState> {
 
 type AgentFactory<T> = (name: string) => T;
 
+/** Default: evict idle agents after 30 minutes with no activity. */
+const DEFAULT_EVICTION_TTL_MS = 30 * 60 * 1000;
+const EVICTION_CHECK_INTERVAL_MS = 60 * 1000;
+
 /**
  * In-memory namespace that lazily creates agent instances on getByName().
  * Implements the DurableObjectNamespace shape so it can be placed directly
@@ -158,15 +177,26 @@ type AgentFactory<T> = (name: string) => T;
  *
  * When stateDir is provided, agent state is persisted to disk and restored
  * on creation so that state survives process restarts.
+ *
+ * Agents with no active WebSocket connections and no activity for longer
+ * than `evictionTtlMs` are automatically evicted (state is flushed first).
  */
 export class AgentNamespace<T extends Agent<unknown, unknown>> {
     private instances = new Map<string, T>();
     private factory: AgentFactory<T>;
     private stateDir: string | null;
+    private evictionTtlMs: number;
+    private evictionTimer: ReturnType<typeof setInterval> | null = null;
 
-    constructor(factory: AgentFactory<T>, stateDir?: string) {
+    constructor(factory: AgentFactory<T>, stateDir?: string, evictionTtlMs = DEFAULT_EVICTION_TTL_MS) {
         this.factory = factory;
         this.stateDir = stateDir ?? null;
+        this.evictionTtlMs = evictionTtlMs;
+
+        if (this.evictionTtlMs > 0) {
+            this.evictionTimer = setInterval(() => this.evictIdle(), EVICTION_CHECK_INTERVAL_MS);
+            if (this.evictionTimer.unref) this.evictionTimer.unref();
+        }
     }
 
     getByName(name: string): T {
@@ -197,10 +227,30 @@ export class AgentNamespace<T extends Agent<unknown, unknown>> {
     delete(name: string): boolean {
         const instance = this.instances.get(name);
         if (instance) {
-            // Flush any pending state before removing
-            (instance as Agent<unknown, unknown>)['_persistence']?.dispose();
+            instance.dispose();
         }
         return this.instances.delete(name);
+    }
+
+    /** Number of currently loaded agent instances. */
+    get size(): number {
+        return this.instances.size;
+    }
+
+    /**
+     * Evict agents that have no active WebSocket connections and
+     * have been idle longer than the configured TTL.
+     */
+    private evictIdle(): void {
+        const now = Date.now();
+        for (const [name, instance] of this.instances) {
+            const idle = now - instance.lastActivityMs;
+            const hasConnections = instance.getWebSockets().length > 0;
+            if (!hasConnections && idle > this.evictionTtlMs) {
+                instance.dispose();
+                this.instances.delete(name);
+            }
+        }
     }
 }
 

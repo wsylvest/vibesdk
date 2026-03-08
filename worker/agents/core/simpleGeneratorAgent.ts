@@ -1,14 +1,13 @@
 import { Agent, Connection } from '../../standalone/agents-compat';
-import { 
-    Blueprint, 
-    PhaseConceptGenerationSchemaType, 
+import {
+    PhaseConceptGenerationSchemaType,
     PhaseConceptType,
     FileOutputType,
     PhaseImplementationSchemaType,
 } from '../schemas';
-import { GitHubPushRequest, PreviewType, StaticAnalysisResponse, TemplateDetails } from '../../services/sandbox/sandboxTypes';
+import { GitHubPushRequest, PreviewType, StaticAnalysisResponse } from '../../services/sandbox/sandboxTypes';
 import {  GitHubExportResult } from '../../services/github/types';
-import { CodeGenState, CurrentDevState, MAX_PHASES, FileState } from './state';
+import { CodeGenState, CurrentDevState, MAX_PHASES, DEFAULT_CODEGEN_STATE, FileState } from './state';
 import { AllIssues, AgentSummary, AgentInitArgs, PhaseExecutionResult, UserContext } from './types';
 import { MAX_DEPLOYMENT_RETRIES, PREVIEW_EXPIRED_ERROR, WebSocketMessageResponses } from '../constants';
 import { broadcastToConnections, handleWebSocketClose, handleWebSocketMessage } from './websocket';
@@ -27,7 +26,7 @@ import { ScreenshotAnalysisOperation } from '../operations/ScreenshotAnalysis';
 import { BaseSandboxService } from '../../services/sandbox/BaseSandboxService';
 import { getSandboxService } from '../../services/sandbox/factory';
 import { WebSocketMessageData, WebSocketMessageType } from '../../api/websocketTypes';
-import { InferenceContext, AgentActionKey } from '../inferutils/config.types';
+import { AgentActionKey } from '../inferutils/config.types';
 import { AGENT_CONFIG } from '../inferutils/config';
 import { ModelConfigService } from '../../database/services/ModelConfigService';
 import { FileFetcher, fixProjectIssues } from '../../services/code-fixer';
@@ -211,32 +210,7 @@ export class SimpleCodeGeneratorAgent extends Agent<Env, CodeGenState> {
         return url;
     }
 
-    initialState: CodeGenState = {
-        blueprint: {} as Blueprint, 
-        query: "",
-        generatedPhases: [],
-        generatedFilesMap: {},
-        agentMode: 'deterministic',
-        generationPromise: undefined,
-        sandboxInstanceId: undefined,
-        templateDetails: {} as TemplateDetails,
-        commandsHistory: [],
-        lastPackageJson: '',
-        clientReportedErrors: [],
-        // latestScreenshot: undefined,
-        pendingUserInputs: [],
-        inferenceContext: {} as InferenceContext,
-        // conversationalAssistant: new ConversationalAssistant(this.env),
-        sessionId: '',
-        hostname: '',
-        conversationMessages: [],
-        currentDevState: CurrentDevState.IDLE,
-        phasesCounter: MAX_PHASES,
-        mvpGenerated: false,
-        shouldBeGenerating: false,
-        reviewingInitiated: false,
-        projectUpdatesAccumulator: [],
-    };
+    initialState: CodeGenState = { ...DEFAULT_CODEGEN_STATE };
 
     async saveToDatabase() {
         this.logger().info(`Blueprint generated successfully for agent ${this.getAgentId()}`);
