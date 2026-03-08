@@ -6,6 +6,7 @@ import {
 	useState,
 	type FormEvent,
 } from 'react';
+import clsx from 'clsx';
 import { ArrowRight, Image as ImageIcon } from 'react-feather';
 import { useParams, useSearchParams, useNavigate } from 'react-router';
 import { MonacoEditor } from '../../components/monaco-editor/monaco-editor';
@@ -33,6 +34,7 @@ import { useAutoScroll } from '@/hooks/use-auto-scroll';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { useDragDrop } from '@/hooks/use-drag-drop';
 import { ImageAttachmentPreview } from '@/components/image-attachment-preview';
+import { useKeyboardShortcuts } from './hooks/use-keyboard-shortcuts';
 
 export default function Chat() {
 	const { chatId: urlChatId } = useParams();
@@ -237,6 +239,11 @@ export default function Chat() {
 		setView(mode);
 	}, []);
 
+	useKeyboardShortcuts({
+		onViewChange: handleViewModeChange,
+		previewAvailable: !!previewUrl,
+	});
+
 	const generatingCount = useMemo(
 		() =>
 			files.reduce(
@@ -313,15 +320,32 @@ export default function Chat() {
 		prevMessagesLengthRef.current = messages.length;
 	}, [messages.length, scrollToBottom]);
 
+	const [previewHasUpdate, setPreviewHasUpdate] = useState(false);
+
 	useEffect(() => {
 		if (previewUrl && !hasSeenPreview.current && isPhase1Complete) {
-			setView('preview');
+			setPreviewHasUpdate(true);
 			setShowTooltip(true);
 			setTimeout(() => {
 				setShowTooltip(false);
-			}, 3000); // Auto-hide tooltip after 3 seconds
+			}, 3000);
+			hasSeenPreview.current = true;
 		}
 	}, [previewUrl, isPhase1Complete]);
+
+	// Show badge on subsequent preview refreshes
+	useEffect(() => {
+		if (shouldRefreshPreview && view !== 'preview') {
+			setPreviewHasUpdate(true);
+		}
+	}, [shouldRefreshPreview, view]);
+
+	// Clear badge when user switches to preview
+	useEffect(() => {
+		if (view === 'preview') {
+			setPreviewHasUpdate(false);
+		}
+	}, [view]);
 
 	useEffect(() => {
 		if (chatId) {
@@ -408,15 +432,45 @@ export default function Chat() {
 	const { isDragging: isChatDragging, dragHandlers: chatDragHandlers } = useDragDrop({
 		onFilesDropped: addImages,
 		accept: [...SUPPORTED_IMAGE_MIME_TYPES],
-		disabled: isChatDisabled,
+		disabled: false,
 	});
+
+	// Queue messages typed while chat is disabled, send when enabled
+	const pendingMessageRef = useRef<{ message: string; images: Array<{ mimeType: string; base64Data: string }> } | null>(null);
+
+	useEffect(() => {
+		if (!isChatDisabled && pendingMessageRef.current) {
+			const { message, images: pendingImages } = pendingMessageRef.current;
+			pendingMessageRef.current = null;
+			websocket?.send(
+				JSON.stringify({
+					type: 'user_suggestion',
+					message,
+					images: pendingImages.length > 0 ? pendingImages : undefined,
+				}),
+			);
+			sendUserMessage(message);
+			setNewMessage('');
+			clearImages();
+			requestAnimationFrame(() => scrollToBottom());
+		}
+	}, [isChatDisabled, websocket, sendUserMessage, clearImages, scrollToBottom]);
 
 	const onNewMessage = useCallback(
 		(e: FormEvent) => {
 			e.preventDefault();
 
-			// Don't submit if chat is disabled or message is empty
-			if (isChatDisabled || !newMessage.trim()) {
+			if (!newMessage.trim()) return;
+
+			// If chat is disabled, queue the message for later
+			if (isChatDisabled) {
+				pendingMessageRef.current = { message: newMessage, images: [...images] };
+				sendUserMessage(newMessage);
+				setNewMessage('');
+				if (images.length > 0) {
+					clearImages();
+				}
+				requestAnimationFrame(() => scrollToBottom());
 				return;
 			}
 
@@ -430,11 +484,9 @@ export default function Chat() {
 			);
 			sendUserMessage(newMessage);
 			setNewMessage('');
-			// Clear images after sending
 			if (images.length > 0) {
 				clearImages();
 			}
-			// Ensure we scroll after sending our own message
 			requestAnimationFrame(() => scrollToBottom());
 		},
 		[newMessage, websocket, sendUserMessage, isChatDisabled, scrollToBottom, images, clearImages],
@@ -623,7 +675,6 @@ export default function Chat() {
 							e.target.value = '';
 						}}
 						className="hidden"
-						disabled={isChatDisabled}
 					/>
 					<div className="relative">
 						{isChatDragging && (
@@ -664,10 +715,9 @@ export default function Chat() {
 										// Shift+Enter will create a new line (default textarea behavior)
 									}
 								}}
-								disabled={isChatDisabled}
 								placeholder={
 									isChatDisabled
-										? 'Please wait for blueprint completion...'
+										? 'Type your message — it will be sent when ready...'
 										: isRunning
 											? 'Chat with AI while generating...'
 											: 'Ask a follow up...'
@@ -687,11 +737,25 @@ export default function Chat() {
 									}
 								}}
 							/>
-							<div className="absolute right-1.5 bottom-2.5 flex items-center gap-1">
+							{newMessage.trim().length > 0 && (
+							<div className="flex justify-end px-1 pt-1">
+								<span className={clsx(
+									'text-[10px] font-mono tabular-nums transition-colors',
+									countWords(newMessage) / MAX_WORDS >= 0.95
+										? 'text-red-400'
+										: countWords(newMessage) / MAX_WORDS >= 0.8
+											? 'text-orange-400'
+											: 'text-text-primary/30'
+								)}>
+									{countWords(newMessage)}/{MAX_WORDS}
+								</span>
+							</div>
+						)}
+						<div className="absolute right-1.5 bottom-2.5 flex items-center gap-1">
 								<button
 									type="button"
 									onClick={() => imageInputRef.current?.click()}
-									disabled={isChatDisabled || isProcessing}
+									disabled={isProcessing}
 									className="p-1.5 rounded-md hover:bg-bg-3 text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 									aria-label="Upload image"
 									title="Upload image"
@@ -700,7 +764,7 @@ export default function Chat() {
 								</button>
 								<button
 									type="submit"
-									disabled={!newMessage.trim() || isChatDisabled}
+									disabled={!newMessage.trim()}
 									className="p-1.5 rounded-md bg-accent/90 hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent text-white disabled:text-text-primary transition-colors"
 								>
 									<ArrowRight className="size-4" />
@@ -728,6 +792,7 @@ export default function Chat() {
 												onChange={handleViewModeChange}
 												previewAvailable={!!previewUrl}
 												showTooltip={showTooltip}
+											previewHasUpdate={previewHasUpdate}
 											/>
 										</div>
 
@@ -936,6 +1001,7 @@ export default function Chat() {
 														!!previewUrl
 													}
 													showTooltip={showTooltip}
+													previewHasUpdate={previewHasUpdate}
 												/>
 											</div>
 
@@ -1022,7 +1088,8 @@ export default function Chat() {
 															'plaintext',
 														readOnly: true,
 														minimap: {
-															enabled: false,
+															enabled: true,
+															renderCharacters: false,
 														},
 														lineNumbers: 'on',
 														scrollBeyondLastLine: false,

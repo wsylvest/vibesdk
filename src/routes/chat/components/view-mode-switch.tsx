@@ -7,11 +7,13 @@ export function ViewModeSwitch({
 	onChange,
 	previewAvailable = false,
 	showTooltip = false,
+	previewHasUpdate = false,
 }: {
 	view: 'preview' | 'editor' | 'blueprint'
 	onChange: (mode: 'preview' | 'editor' | 'blueprint') => void;
 	previewAvailable: boolean;
 	showTooltip: boolean;
+	previewHasUpdate?: boolean;
 }) {
 	if (!previewAvailable) {
 		return null;
@@ -35,13 +37,16 @@ export function ViewModeSwitch({
 			<button
 				onClick={() => onChange('preview')}
 				className={clsx(
-					'p-1 flex items-center justify-between h-full rounded-md transition-colors',
+					'relative p-1 flex items-center justify-between h-full rounded-md transition-colors',
 					view === 'preview'
 						? 'bg-bg-4 text-text-primary'
 						: 'text-text-50/70 hover:text-text-primary hover:bg-accent',
 				)}
 			>
 				<Eye className="size-4" />
+				{previewHasUpdate && view !== 'preview' && (
+					<span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-accent animate-pulse" />
+				)}
 			</button>
 			<button
 				onClick={() => onChange('editor')}
@@ -54,20 +59,6 @@ export function ViewModeSwitch({
 			>
 				<Code className="size-4" />
 			</button>
-			{/* {terminalAvailable && (
-				<button
-					onClick={() => onChange('terminal')}
-					className={clsx(
-						'p-1 flex items-center justify-between h-full rounded-md transition-colors',
-						view === 'terminal'
-							? 'bg-bg-4 text-text-primary'
-							: 'text-text-50/70 hover:text-text-primary hover:bg-accent',
-					)}
-					title="Terminal"
-				>
-					<Terminal className="size-4" />
-				</button>
-			)} */}
 		</div>
 	);
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LucideNetwork, ChevronRight, File } from 'lucide-react';
+import { LucideNetwork, ChevronRight, File, Loader } from 'lucide-react';
 import type { FileType } from '../hooks/use-chat';
 import clsx from 'clsx';
 
@@ -38,15 +38,15 @@ export function FileTreeItem({
 			>
 				<File className="size-3" />
 				<span className="flex-1 text-left truncate">{item.name}</span>
-				{/* {item.file.isGenerating ? (
-					<Loader className="size-3 animate-spin" />
-				) : null}
-				{item.file.needsFixing && (
-					<span className="text-[9px] text-orange-400">fix</span>
+				{item.file.isGenerating && (
+					<Loader className="size-3 animate-spin text-accent" />
 				)}
-				{item.file.hasRuntimeError && (
-					<span className="text-[9px] text-red-400">error</span>
-				)} */}
+				{item.file.needsFixing && (
+					<span className="text-[9px] font-medium text-orange-400">fix</span>
+				)}
+				{item.file.hasErrors && (
+					<span className="text-[9px] font-medium text-red-400">error</span>
+				)}
 			</button>
 		);
 	}
